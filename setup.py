@@ -6,7 +6,10 @@ setup(
     packages=find_packages(),
     install_requires=[
         'numpy',
-        'pandas'
+        'pandas',
+        'requests',
+        'transformers',
+        'gensim'
     ],
     # Más configuraciones como author, license, etc.
 )
