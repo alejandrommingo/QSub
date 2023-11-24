@@ -9,7 +9,8 @@ setup(
         'pandas',
         'requests',
         'transformers',
-        'gensim'
+        'gensim',
+        'pytest'
     ],
     # Más configuraciones como author, license, etc.
 )
