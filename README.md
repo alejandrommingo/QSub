@@ -2,7 +2,7 @@
 
 ## Overview
 
-The QSub Library is a Python package designed for creating and manipulating semantic subspaces. It leverages advanced computational models to explore and experiment with different aspects of language processing. This library is particularly useful for researchers and practitioners working in the fields of computational linguistics, cognitive psychology, and data science.
+The `QSub` Library is a Python package designed for creating and manipulating semantic subspaces. It leverages advanced computational models to explore and experiment with different aspects of language processing. This library is particularly useful for researchers and practitioners working in the fields of computational linguistics, cognitive psychology, and data science.
 
 ## Features
 
