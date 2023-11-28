@@ -25,7 +25,7 @@ pip install .
 QSub is in its first alpha version. For now, the function for extracting contours from the [Gallito](https://psicoee.uned.es/quantumlikespace/especifications/ASSE_searchBySimpleProjectionInGTFS.aspx) program's API has been developed. Future updates will be announced.
 
 ```python
-from QSub.contours import gallito_contour
+from QSub.contours import gallito_neighbors_matrix
 
 # Parameters
 word = "example"
@@ -34,7 +34,7 @@ space_name = "quantumlikespace_spanish"
 neighbors = 100
 
 # Generate contour
-contour = gallito_contour(word, api_key, space_name, neighbors)
+simple_contour = gallito_neighbors_matrix(word, api_key, space_name, neighbors)
 ```
 
 Remember to replace `"your_api_key"` with your actual Gallito API key.
