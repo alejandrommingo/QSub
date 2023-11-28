@@ -6,7 +6,7 @@ import html
 from numpy.linalg import norm
 
 
-def gallito_contour(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions = 300):
+def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions = 300):
     k = space_dimensions  # Define K dimensions
     n = neighbors  # Define N neighbors
 
@@ -56,7 +56,6 @@ def gallito_contour(word, gallito_code, space_name, neighbors=100, min_cosine_co
         matrix[:, i] = vector
 
     # Extraer el vector del término objetivo
-
     resp_a = requests.get(
         f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}")
     content = resp_a.text
@@ -79,3 +78,19 @@ def gallito_contour(word, gallito_code, space_name, neighbors=100, min_cosine_co
 
     return np.array(selected_rows)
 
+def word_vector(word, gallito_code, space_name):
+    # Extraer el vector del término objetivo
+    resp_a = requests.get(
+        f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}")
+    content = resp_a.text
+
+    # Decodificar las entidades HTML
+    decoded_content = html.unescape(content)
+
+    # Extraer todos los valores numéricos de las etiquetas <dim>
+    vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_content)
+
+    # Convertir los valores a float y reemplazar comas por puntos
+    word_vector = [float(value.replace(',', '.')) for value in vector_values]
+
+    return np.array(word_vector)
