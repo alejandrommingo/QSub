@@ -7,6 +7,7 @@ from fuzzywuzzy import process
 import xml.etree.ElementTree as ET
 import html
 from numpy.linalg import norm
+from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 
@@ -42,71 +43,49 @@ def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_
 
     # Preparar la consulta a la API de Gallito
     query_xml = f"""
-    <getNearestNeighboursList xmlns='http://tempuri.org/'>
-        <code>{gallito_code}</code>
-        <a>{word}</a>
-        <txtNegate></txtNegate>
-        <n>{n}</n>
-        <lenght_biased>false</lenght_biased>
-    </getNearestNeighboursList>
-    """
+        <getNearestNeighboursList xmlns='http://tempuri.org/'>
+            <code>{gallito_code}</code>
+            <a>{word}</a>
+            <txtNegate></txtNegate>
+            <n>{n}</n>
+            <lenght_biased>false</lenght_biased>
+        </getNearestNeighboursList>
+        """
 
     space_url = f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getNearestNeighboursList"
     response = requests.post(space_url, data=query_xml, headers={'Content-Type': 'text/xml'})
 
-    # Decodificar las entidades HTML
     decoded_content = html.unescape(response.text)
     namespaces = {'ns': 'http://tempuri.org/'}
-
-    # Procesar la respuesta decodificada
     root = ET.fromstring(decoded_content)
-    # Ajustar la consulta XPath para incluir el espacio de nombres
     terms = [term.text for term in root.findall('.//ns:item/ns:term', namespaces)]
 
     if not terms:
         print("No se encontraron términos.")
         return None
 
-    matrix = np.zeros((k, len(terms)))
-
-    for i, term in enumerate(tqdm(terms, desc="Procesando términos")):
+    # Función para obtener el vector de un término
+    def get_vector(term):
         vector_url = f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={term}"
         vector_response = requests.get(vector_url)
-
-        # Decodificar las entidades HTML
         decoded_vector_content = html.unescape(vector_response.text)
-
-        # Extraer todos los valores numéricos de las etiquetas <dim>
         vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_vector_content)
+        return np.array([float(value.replace(',', '.')) for value in vector_values])
 
-        # Convertir los valores a float y reemplazar comas por puntos
-        vector = np.array([float(value.replace(',', '.')) for value in vector_values])
+    # Obtener vectores de términos en paralelo con barra de progreso
+    with ThreadPoolExecutor() as executor:
+        vectors = list(tqdm(executor.map(get_vector, terms), total=len(terms), desc="Obteniendo vectores"))
 
-        # Añadir el vector a la matriz
-        matrix[:, i] = vector
+    matrix = np.array(vectors).T
 
-    # Extraer el vector del término objetivo
-    resp_a = requests.get(
-        f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}")
-    content = resp_a.text
-
-    # Decodificar las entidades HTML
-    decoded_content = html.unescape(content)
-
-    # Extraer todos los valores numéricos de las etiquetas <dim>
-    vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_content)
-
-    # Convertir los valores a float y reemplazar comas por puntos
-    word_vector = [float(value.replace(',', '.')) for value in vector_values]
+    # Vector del término objetivo
+    word_vector = get_vector(word)
 
     # Calcular la correlación y filtrar por el mínimo coseno
-    selected_rows = []
+    cosines = np.dot(matrix.T, word_vector) / (np.linalg.norm(matrix.T, axis=1) * np.linalg.norm(word_vector))
+    selected_rows = matrix.T[cosines > min_cosine_contour]
 
-    for row in matrix.T:
-        if np.dot(row, word_vector) / (norm(row) * norm(word_vector)) > 0.3:
-            selected_rows.append(row)
-
-    results = {"neighbors": terms, "neighbors_vec": np.array(selected_rows)}
+    results = {"neighbors": terms, "neighbors_vec": selected_rows}
 
     return results
 
