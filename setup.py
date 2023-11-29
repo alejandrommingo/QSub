@@ -10,8 +10,7 @@ setup(
         'requests',
         'matplotlib',
         'fuzzywuzzy',
-        'html',
-        'xml.etree.ElementTree'
+        'xml.etree.ElementTree',
         'transformers',
         'gensim',
         'pytest'
