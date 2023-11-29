@@ -76,21 +76,55 @@ def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_
         if np.dot(row, word_vector) / (norm(row) * norm(word_vector)) > 0.3:
             selected_rows.append(row)
 
-    return np.array(selected_rows)
+    results = {"neighbors": terms, "neighbors_vec": np.array(selected_rows)}
+
+    return results
 
 def word_vector(word, gallito_code, space_name):
     # Extraer el vector del término objetivo
     resp_a = requests.get(
         f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}")
     content = resp_a.text
-
     # Decodificar las entidades HTML
     decoded_content = html.unescape(content)
-
     # Extraer todos los valores numéricos de las etiquetas <dim>
     vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_content)
-
     # Convertir los valores a float y reemplazar comas por puntos
     word_vector = [float(value.replace(',', '.')) for value in vector_values]
 
     return np.array(word_vector)
+
+
+def word_cosine_similarity(v1, v2):
+    """Calcula la similitud coseno entre dos vectores."""
+    cos_sim = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    return cos_sim
+
+
+def neighbors_similarity(word_semantic_vector, word_neighbors_matrix):
+    """
+    Calcula la similitud coseno entre un vector semántico de una palabra y cada vector
+    en una matriz de vecinos, ordenando los resultados en orden descendente. También devuelve
+    los términos asociados en el mismo orden.
+
+    :param word_semantic_vector: ndarray, el vector semántico de la palabra objetivo.
+    :param word_neighbors_matrix: dict, con "neighbors_vec" (ndarray) y "neighbors" (lista de términos).
+    :return: Tuple de dos ndarrays, el primero de similitudes coseno y el segundo de términos, ambos ordenados.
+    """
+    cosine_vec = np.zeros(word_neighbors_matrix["neighbors_vec"].shape[0])
+    terms = word_neighbors_matrix["neighbors"]
+
+    for i in range(word_neighbors_matrix["neighbors_vec"].shape[0]):
+        cosine_vec[i] = word_cosine_similarity(word_neighbors_matrix["neighbors_vec"][i, :], word_semantic_vector)
+
+    # Crea un array estructurado para mantener juntos los cosenos y los términos
+    combined = np.array(list(zip(cosine_vec, terms)), dtype=[('cosine', 'f4'), ('term', 'U20')])
+
+    # Ordena el array basado en las similitudes coseno
+    combined_sorted = np.sort(combined, order='cosine')[::-1]
+
+    # Separa y devuelve los vectores de cosenos y términos
+    sorted_cosines = combined_sorted['cosine']
+    sorted_terms = combined_sorted['term']
+    return sorted_cosines, sorted_terms
+
