@@ -8,7 +8,6 @@ setup(
         'numpy',
         'pandas',
         'requests',
-        're',
         'matplotlib',
         'fuzzywuzzy',
         'html',
