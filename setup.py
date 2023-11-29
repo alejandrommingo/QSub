@@ -12,7 +12,8 @@ setup(
         'fuzzywuzzy',
         'transformers',
         'gensim',
-        'pytest'
+        'pytest',
+        'tqdm'
     ],
     include_package_data=True,  # Asegúrate de incluir esto
     package_data={

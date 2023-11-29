@@ -7,6 +7,7 @@ from fuzzywuzzy import process
 import xml.etree.ElementTree as ET
 import html
 from numpy.linalg import norm
+from tqdm import tqdm
 
 
 def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions=300):
@@ -68,7 +69,7 @@ def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_
 
     matrix = np.zeros((k, len(terms)))
 
-    for i, term in enumerate(terms):
+    for i, term in enumerate(tqdm(terms, desc="Procesando términos")):
         vector_url = f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={term}"
         vector_response = requests.get(vector_url)
 
