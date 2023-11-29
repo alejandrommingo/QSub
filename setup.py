@@ -13,7 +13,8 @@ setup(
         'transformers',
         'gensim',
         'pytest',
-        'tqdm'
+        'tqdm',
+        'python-Levenshtein'
     ],
     include_package_data=True,  # Asegúrate de incluir esto
     package_data={
