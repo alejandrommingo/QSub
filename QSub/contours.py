@@ -6,10 +6,15 @@ import matplotlib.pyplot as plt
 from fuzzywuzzy import process
 import xml.etree.ElementTree as ET
 import html
-from numpy.linalg import norm
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+from QSub.semantic_spaces import word_vector, word_cosine_similarity
 
+# In this module you can find all functions related to the creation of contextual and conceptual contours
+
+######################################
+### GALLITO API BASED CONTORUS LSA ###
+######################################
 
 def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions=300):
     """
@@ -88,58 +93,6 @@ def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_
     results = {"neighbors": terms, "neighbors_vec": selected_rows}
 
     return results
-
-def word_vector(word, gallito_code, space_name):
-    """
-    Extrae el vector semántico de un término específico desde un espacio semántico
-    proporcionado, utilizando el servicio web de Gallito.
-
-    :param word: El término objetivo para el cual se busca el vector semántico.
-    :type word: str
-    :param gallito_code: Código de identificación para acceder al espacio semántico de Gallito.
-    :type gallito_code: str
-    :param space_name: Nombre del espacio semántico dentro del servicio de Gallito.
-    :type space_name: str
-    :return: Un array numpy que representa el vector semántico del término dado.
-    :rtype: numpy.ndarray
-
-    La función realiza una solicitud GET al servicio web de Gallito para obtener el
-    vector del término especificado. Los valores del vector se extraen de la respuesta
-    XML, se decodifican las entidades HTML y se convierten los valores numéricos a float.
-    """
-    # Extraer el vector del término objetivo
-    resp_a = requests.get(
-        f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}")
-    content = resp_a.text
-    # Decodificar las entidades HTML
-    decoded_content = html.unescape(content)
-    # Extraer todos los valores numéricos de las etiquetas <dim>
-    vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_content)
-    # Convertir los valores a float y reemplazar comas por puntos
-    word_vector = [float(value.replace(',', '.')) for value in vector_values]
-
-    return np.array(word_vector)
-
-
-def word_cosine_similarity(v1, v2):
-    """
-    Calcula la similitud coseno entre dos vectores.
-
-    :param v1: Primer vector para el cálculo de la similitud coseno.
-    :type v1: numpy.ndarray
-    :param v2: Segundo vector para el cálculo de la similitud coseno.
-    :type v2: numpy.ndarray
-    :return: El valor de la similitud coseno entre los dos vectores.
-    :rtype: float
-
-    Esta función calcula la similitud coseno, una medida de similitud entre dos vectores
-    no nulos en un espacio que tiene en cuenta la orientación de los vectores pero no su magnitud.
-    La similitud coseno se define como el producto punto de los vectores dividido por el producto
-    de sus magnitudes (normas).
-    """
-    cos_sim = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-    return cos_sim
-
 
 def neighbors_similarity(word_semantic_vector, word_neighbors_matrix):
     """
