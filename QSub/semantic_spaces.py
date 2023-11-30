@@ -3,12 +3,13 @@ import requests
 import re
 import html
 import concurrent.futures
+from tqdm import tqdm
 
 #############################################
 ## GALLITO BASED SEMANTIC SPACE OPERATIONS ##
 #############################################
 
-def word_vector(word, gallito_code, space_name):
+def get_word_vector_gallito(word, gallito_code, space_name):
     """
     Extrae el vector semántico de un término específico desde un espacio semántico
     proporcionado, utilizando el servicio web de Gallito.
@@ -40,6 +41,48 @@ def word_vector(word, gallito_code, space_name):
     return np.array(word_vector)
 
 
+def get_lsa_corpus_gallito(terms_file, gallito_code, space_name):
+    """
+    Lee una lista de términos de un archivo .txt, obtiene el vector de cada término
+    usando la función 'word_vector', y guarda todo el corpus en una lista de 1darrays.
+    También guarda en una lista todos los términos. Devuelve una tupla con dos listas
+
+    Advertencia: Esta función es de una elevada exigencia computacional. Si se dispone del
+    vector del supertérmino y de los cosenos del supertérmino ya ordenados, se recomienda
+    no hacer uso de la misma.
+
+    :param terms_file: Ruta al archivo .txt que contiene los términos.
+    :type terms_file: str
+    :param gallito_code: Código de acceso para la API de Gallito.
+    :type gallito_code: str
+    :param space_name: Nombre del espacio semántico en la API de Gallito.
+    :type space_name: str
+    :return: Un diccionario con los terminos en las keys y los vectores en los values.
+    :rtype: dict
+    """
+
+    # Leer el archivo de términos
+    with open(terms_file, 'r', encoding='utf-8') as file:
+        individual_terms = [line.strip() for line in file]
+
+    # Función auxiliar para usar en paralelo
+    def get_term_vector(term):
+        return term, get_word_vector_gallito(term, gallito_code, space_name)
+
+    # Realizar solicitudes en paralelo y construir un diccionario
+    corpus_dict = {}
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for term, vector in tqdm(executor.map(get_term_vector, individual_terms),
+                                 total=len(individual_terms),
+                                 desc="Procesando términos"):
+            corpus_dict[term] = np.array(vector)
+
+    return corpus_dict
+
+#######################################
+## GENERAL SEMANTIC SPACE OPERATIONS ##
+#######################################
+
 def word_cosine_similarity(v1, v2):
     """
     Calcula la similitud coseno entre dos vectores.
@@ -58,38 +101,3 @@ def word_cosine_similarity(v1, v2):
     """
     cos_sim = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
     return cos_sim
-
-def lsa_corpus(terms_file, gallito_code, space_name):
-    """
-    Lee una lista de términos de un archivo .txt, obtiene el vector de cada término
-    usando la función 'word_vector', y guarda todo el corpus en una lista de 1darrays.
-    También guarda en una lista todos los términos. Devuelve una tupla con dos listas
-
-    Advertencia: Esta función es de una elevada exigencia computacional. Si se dispone del
-    vector del supertérmino y de los cosenos del supertérmino ya ordenados, se recomienda
-    no hacer uso de la misma.
-
-    :param terms_file: Ruta al archivo .txt que contiene los términos.
-    :type terms_file: str
-    :param gallito_code: Código de acceso para la API de Gallito.
-    :type gallito_code: str
-    :param space_name: Nombre del espacio semántico en la API de Gallito.
-    :type space_name: str
-    :return: Una tupla que contiene dos elementos: el primer elemento es una lista con todo
-            el vocabulario del corpus, y el segundo elemento es un array con todos sus vectores en el espacio.
-    :rtype: tuple
-    """
-
-    # Leer el archivo de términos
-    with open(terms_file, 'r', encoding='utf-8') as file:
-        individual_terms = [line.strip() for line in file]
-
-    # Función auxiliar para usar en paralelo
-    def get_term_vector(term):
-        return word_vector(term, gallito_code, space_name)
-
-    # Realizar solicitudes en paralelo
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        individual_vectors = list(executor.map(get_term_vector, individual_terms))
-
-    return individual_terms, individual_vectors

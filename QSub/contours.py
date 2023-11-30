@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 import html
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
-from QSub.semantic_spaces import word_vector, word_cosine_similarity
+from QSub.semantic_spaces import get_word_vector_gallito, word_cosine_similarity
 
 # In this module you can find all functions related to the creation of contextual and conceptual contours
 
@@ -16,7 +16,7 @@ from QSub.semantic_spaces import word_vector, word_cosine_similarity
 ### GALLITO API BASED CONTORUS LSA ###
 ######################################
 
-def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions=300):
+def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions=300):
     """
     Consulta un espacio semántico específico (denominado 'Gallito') para obtener
     una matriz de los vecinos semánticos más cercanos a un término dado. Extrae los
@@ -94,6 +94,59 @@ def gallito_neighbors_matrix(word, gallito_code, space_name, neighbors=100, min_
 
     return results
 
+def get_superterm_gallito(terms_file, gallito_code, space_name):
+    """
+    Lee una lista de términos de un archivo .txt, obtiene el vector de cada término
+    usando la función 'word_vector', suma estos vectores y devuelve el resultado y un vector
+    de similitudes coseno del vector suma con cada término.
+
+    Advertencia: Esta función es de una elevada exigencia computacional. Si se dispone del
+    vector del supertérmino y de los cosenos del supertérmino ya ordenados, se recomienda
+    no hacer uso de la misma.
+
+    :param terms_file: Ruta al archivo .txt que contiene los términos.
+    :type terms_file: str
+    :param gallito_code: Código de acceso para la API de Gallito.
+    :type gallito_code: str
+    :param space_name: Nombre del espacio semántico en la API de Gallito.
+    :type space_name: str
+    :return: Una tupla que contiene dos elementos: el primer elemento es el vector suma de todos los
+             vectores de términos, y el segundo elemento es un array numpy de similitudes coseno entre
+             el vector suma y cada uno de los vectores individuales de términos.
+    :rtype: tuple
+
+    La función lee los términos desde el archivo especificado, utiliza 'word_vector' para obtener el vector
+    semántico de cada término y los suma para formar el vector del supertérmino. Luego, calcula la similitud
+    coseno entre este vector suma y cada uno de los vectores de términos individuales y devuelve ambos, el
+    vector suma y las similitudes coseno, en una tupla.
+    """
+
+    # Inicializa el vector sumatorio y la lista de vectores individuales
+    superterm_vector = None
+    individual_vectors = []
+
+    # Leer el archivo de términos
+    with open(terms_file, 'r', encoding='utf-8') as file:
+        for line in file:
+            term = line.strip()  # Elimina espacios y saltos de línea
+            term_vector = get_word_vector_gallito(term, gallito_code, space_name)
+            individual_vectors.append(term_vector)
+
+            # Sumar vectores
+            if superterm_vector is None:
+                superterm_vector = term_vector
+            else:
+                superterm_vector += term_vector
+
+    # Calcular las similitudes coseno
+    cosine_similarities = np.array([word_cosine_similarity(superterm_vector, v) for v in individual_vectors])
+
+    return superterm_vector, cosine_similarities
+
+###################################
+## CONTOURS EVALUATION FUNCTIONS ##
+###################################
+
 def neighbors_similarity(word_semantic_vector, word_neighbors_matrix):
     """
     Calcula la similitud coseno entre un vector semántico de una palabra y cada vector
@@ -132,54 +185,6 @@ def neighbors_similarity(word_semantic_vector, word_neighbors_matrix):
     sorted_terms = combined_sorted['term']
     return sorted_cosines, sorted_terms
 
-def get_superterm(terms_file, gallito_code, space_name):
-    """
-    Lee una lista de términos de un archivo .txt, obtiene el vector de cada término
-    usando la función 'word_vector', suma estos vectores y devuelve el resultado y un vector
-    de similitudes coseno del vector suma con cada término.
-
-    Advertencia: Esta función es de una elevada exigencia computacional. Si se dispone del
-    vector del supertérmino y de los cosenos del supertérmino ya ordenados, se recomienda
-    no hacer uso de la misma.
-
-    :param terms_file: Ruta al archivo .txt que contiene los términos.
-    :type terms_file: str
-    :param gallito_code: Código de acceso para la API de Gallito.
-    :type gallito_code: str
-    :param space_name: Nombre del espacio semántico en la API de Gallito.
-    :type space_name: str
-    :return: Una tupla que contiene dos elementos: el primer elemento es el vector suma de todos los
-             vectores de términos, y el segundo elemento es un array numpy de similitudes coseno entre
-             el vector suma y cada uno de los vectores individuales de términos.
-    :rtype: tuple
-
-    La función lee los términos desde el archivo especificado, utiliza 'word_vector' para obtener el vector
-    semántico de cada término y los suma para formar el vector del supertérmino. Luego, calcula la similitud
-    coseno entre este vector suma y cada uno de los vectores de términos individuales y devuelve ambos, el
-    vector suma y las similitudes coseno, en una tupla.
-    """
-
-    # Inicializa el vector sumatorio y la lista de vectores individuales
-    superterm_vector = None
-    individual_vectors = []
-
-    # Leer el archivo de términos
-    with open(terms_file, 'r', encoding='utf-8') as file:
-        for line in file:
-            term = line.strip()  # Elimina espacios y saltos de línea
-            term_vector = word_vector(term, gallito_code, space_name)
-            individual_vectors.append(term_vector)
-
-            # Sumar vectores
-            if superterm_vector is None:
-                superterm_vector = term_vector
-            else:
-                superterm_vector += term_vector
-
-    # Calcular las similitudes coseno
-    cosine_similarities = np.array([word_cosine_similarity(superterm_vector, v) for v in individual_vectors])
-
-    return superterm_vector, cosine_similarities
 
 def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
     """
@@ -246,3 +251,4 @@ def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
     plt.show()
 
     return sum_value
+

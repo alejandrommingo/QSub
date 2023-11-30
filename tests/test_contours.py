@@ -1,8 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
-from QSub.contours import gallito_neighbors_matrix, neighbors_similarity, get_superterm, deserved_neighbors
-from QSub.semantic_spaces import word_vector, word_cosine_similarity
+from QSub.contours import get_neighbors_matrix_gallito, neighbors_similarity, get_superterm_gallito, deserved_neighbors
+from QSub.semantic_spaces import get_word_vector_gallito
 
 def test_gallito_neighbors_matrix():
     # Parámetros de prueba
@@ -13,7 +13,7 @@ def test_gallito_neighbors_matrix():
     test_space_dimensions = 300
 
     # Ejecutamos la función
-    resultado = gallito_neighbors_matrix(test_word, test_code, test_space_name, neighbors=test_neighbors, space_dimensions=test_space_dimensions)
+    resultado = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors, space_dimensions=test_space_dimensions)
 
     # Comprobamos los tests
     assert type(resultado["neighbors_vec"]) is np.ndarray  # Comprueba que el resultado es una matriz
@@ -29,8 +29,8 @@ def test_neighbors_similarity():
     test_space_dimensions = 300
 
     # Ejecutamos la función
-    neighbors = gallito_neighbors_matrix(test_word, test_code, test_space_name, neighbors=test_neighbors, space_dimensions=test_space_dimensions)
-    word = word_vector(test_word, test_code, test_space_name)
+    neighbors = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors, space_dimensions=test_space_dimensions)
+    word = get_word_vector_gallito(test_word, test_code, test_space_name)
     resultado = neighbors_similarity(word, neighbors)
 
     # Comprobamos los tests
@@ -46,7 +46,7 @@ def test_get_superterm():
     test_space_name = "quantumlikespace_spanish"
 
     # Ejecutamos la función
-    resultado = get_superterm(test_vocabulary_path, test_code, test_space_name)
+    resultado = get_superterm_gallito(test_vocabulary_path, test_code, test_space_name)
 
     # Comprobamos los tests
     assert len(resultado) == 2  # Comprueba que el resultado tenga dos elementos
@@ -72,9 +72,9 @@ def test_deserved_neighbors():
     test_superterm_cosines = np.array(test_superterm_cosines)
 
     # Ejecutamos la función
-    neighbors = gallito_neighbors_matrix(test_word, test_code, test_space_name, neighbors=test_neighbors,
+    neighbors = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors,
                                          space_dimensions=test_space_dimensions)
-    word = word_vector(test_word, test_code, test_space_name)
+    word = get_word_vector_gallito(test_word, test_code, test_space_name)
     word_cosines = neighbors_similarity(word, neighbors)
     word_cosines = word_cosines[0]
     resultado = deserved_neighbors("chino", test_h_df, test_superterm_cosines, word_cosines)
