@@ -14,7 +14,8 @@ setup(
         'gensim',
         'pytest',
         'tqdm',
-        'python-Levenshtein'
+        'python-Levenshtein',
+        'scikit-learn'
     ],
     include_package_data=True,  # Asegúrate de incluir esto
     package_data={

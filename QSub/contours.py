@@ -196,7 +196,7 @@ def neighbors_similarity(word_semantic_vector, word_neighbors_dict):
     return sorted_cosine_similarities
 
 
-def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
+def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines, graph=False):
     """
     Analiza y compara la similitud coseno de una palabra objetivo con un 'superterm' y
     sus vecinos más cercanos.
@@ -213,6 +213,8 @@ def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
                          con sus vecinos, resultante de la función neighbors_similarity (elemento
                          'sorted_cosines' de la tupla devuelta).
     :type word_cosines: numpy.ndarray
+    :param graph: Si es True, genera un gráfico del análisis paralelo, por defecto False.
+    :type graph: bool
     :return: El número de vecinos cuya similitud con la palabra objetivo es mayor o igual que la
              similitud con el 'superterm'.
     :rtype: int
@@ -251,14 +253,15 @@ def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
     sum_value = sum(data['word_cosines'] >= data['superterm_weighted'])
 
     # Generar el gráfico
-    plt.figure(figsize=(10, 6))
-    plt.plot(data['secuencia'], data['superterm_weighted'], label='Weighted Superterm')
-    plt.plot(data['secuencia'], data['word_cosines'], label=word)
-    plt.xlabel('Number of Neighbors')
-    plt.ylabel('Similarity')
-    plt.title(f'Superterm vs {word.capitalize()} Cosine Similarities')
-    plt.legend()
-    plt.show()
+    if graph:
+        plt.figure(figsize=(10, 6))
+        plt.plot(data['secuencia'], data['superterm_weighted'], label='Weighted Superterm')
+        plt.plot(data['secuencia'], data['word_cosines'], label=word)
+        plt.xlabel('Number of Neighbors')
+        plt.ylabel('Similarity')
+        plt.title(f'Superterm vs {word.capitalize()} Cosine Similarities')
+        plt.legend()
+        plt.show()
 
     return sum_value
 
