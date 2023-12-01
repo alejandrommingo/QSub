@@ -22,7 +22,7 @@ pip install .
 
 ## Usage
 
-QSub is in its first alpha version. You can find the first use example in spanish in our [Conceptual Contour Notebook](https://github.com/alejandrommingo/QSub/blob/main/notebooks/QSub_ejemplo_uso_contorno_conceptual.ipynb)
+QSub is in its first alpha version. You can find the first use example in our [Conceptual Contour Notebook](https://github.com/alejandrommingo/QSub/blob/main/notebooks/QSub_conceptual_contour_example.ipynb)
 
 ![Deserved Neighbors for Conceptual Contour of Palestine](https://github.com/alejandrommingo/QSub/blob/main/img/QSub_conceptual_contour_example.png)
 
