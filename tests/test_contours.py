@@ -10,15 +10,14 @@ def test_gallito_neighbors_matrix():
     test_code = os.getenv('GALLITO_API_KEY', 'default_code')
     test_space_name = "quantumlikespace_spanish"
     test_neighbors = 10
-    test_space_dimensions = 300
 
     # Ejecutamos la función
-    resultado = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors, space_dimensions=test_space_dimensions)
+    resultado = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors)
 
     # Comprobamos los tests
-    assert type(resultado["neighbors_vec"]) is np.ndarray  # Comprueba que el resultado es una matriz
-    assert not resultado["neighbors_vec"].size == 0  # Comprueba que el resultado no esta vacio
-    assert resultado["neighbors_vec"].shape == (test_neighbors, test_space_dimensions) # Comprueba que el shape de la matriz resultante es la esperada
+    assert type(resultado) is dict  # Comprueba que el resultado es un dict
+    assert type(list(resultado.keys())[0]) == str  # Comprueba que las keys son strings
+    assert type(list(resultado.values())[0]) == np.ndarray # Comprueba que los values son ndarrays
 
 def test_neighbors_similarity():
     # Parámetros de prueba
@@ -26,18 +25,16 @@ def test_neighbors_similarity():
     test_code = os.getenv('GALLITO_API_KEY', 'default_code')
     test_space_name = "quantumlikespace_spanish"
     test_neighbors = 10
-    test_space_dimensions = 300
 
     # Ejecutamos la función
-    neighbors = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors, space_dimensions=test_space_dimensions)
+    neighbors = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors)
     word = get_word_vector_gallito(test_word, test_code, test_space_name)
     resultado = neighbors_similarity(word, neighbors)
 
     # Comprobamos los tests
-    assert len(resultado) == 2  # Comprueba que el resultado tenga dos elementos
-    assert type(resultado) == tuple  # Comprueba que el resultado es una tupla
-    assert type(resultado[0]) == np.ndarray # Comprueba que los elementos de la tupla son ndarrays
-    assert type(resultado[1]) == np.ndarray
+    assert type(resultado) is dict  # Comprueba que el resultado es un dict
+    assert type(list(resultado.keys())[0]) == str  # Comprueba que las keys son strings
+    assert type(list(resultado.values())[0]) == np.float64  # Comprueba que los values son ndarrays
 
 def test_get_superterm():
     # Parámetros de prueba
@@ -62,7 +59,6 @@ def test_deserved_neighbors():
     test_code = os.getenv('GALLITO_API_KEY', 'default_code')
     test_space_name = "quantumlikespace_spanish"
     test_neighbors = 100
-    test_space_dimensions = 300
 
     # Importaciones de prueba
     test_h_df = pd.read_csv(test_h_df_path)  # Asegúrate de usar la ruta correcta al archivo
@@ -72,11 +68,10 @@ def test_deserved_neighbors():
     test_superterm_cosines = np.array(test_superterm_cosines)
 
     # Ejecutamos la función
-    neighbors = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors,
-                                         space_dimensions=test_space_dimensions)
+    neighbors = get_neighbors_matrix_gallito(test_word, test_code, test_space_name, neighbors=test_neighbors)
     word = get_word_vector_gallito(test_word, test_code, test_space_name)
     word_cosines = neighbors_similarity(word, neighbors)
-    word_cosines = word_cosines[0]
+    word_cosines = np.array(list(word_cosines.values()))
     resultado = deserved_neighbors("chino", test_h_df, test_superterm_cosines, word_cosines)
 
     # Comprobamos los tests

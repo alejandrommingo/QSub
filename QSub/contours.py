@@ -16,7 +16,7 @@ from QSub.semantic_spaces import get_word_vector_gallito, word_cosine_similarity
 ### GALLITO API BASED CONTORUS LSA ###
 ######################################
 
-def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100, min_cosine_contour=0.3, space_dimensions=300):
+def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100):
     """
     Consulta un espacio semántico específico (denominado 'Gallito') para obtener
     una matriz de los vecinos semánticos más cercanos a un término dado. Extrae los
@@ -31,31 +31,21 @@ def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100, 
     :type space_name: str
     :param neighbors: Número de vecinos semánticos a recuperar. Por defecto es 100.
     :type neighbors: int
-    :param min_cosine_contour: El umbral mínimo de similitud coseno para considerar un vecino relevante. Por defecto es 0.3.
-    :type min_cosine_contour: float
-    :param space_dimensions: Número de dimensiones del espacio semántico. Por defecto es 300.
-    :type space_dimensions: int
-    :return: Un diccionario que contiene dos claves: 'neighbors', una lista de términos vecinos que cumplen con el criterio de similitud coseno mínimo, y 'neighbors_vec', una matriz numpy donde cada fila representa el vector semántico de los términos vecinos seleccionados.
+    :return: un diccionario con los términos en las keys y los vectores semánticos en los values.
     :rtype: dict
-
-    Notas Adicionales:
-    Esta función depende de los módulos 'requests', 'numpy', 're' y 'html' para realizar solicitudes HTTP,
-    procesamiento de matrices y cadenas. Asegúrate de que el código de Gallito y el nombre del espacio
-    semántico sean correctos y estén actualizados para el correcto funcionamiento de la función.
     """
-    k = space_dimensions  # Define K dimensions
     n = neighbors  # Define N neighbors
 
     # Preparar la consulta a la API de Gallito
     query_xml = f"""
-        <getNearestNeighboursList xmlns='http://tempuri.org/'>
-            <code>{gallito_code}</code>
-            <a>{word}</a>
-            <txtNegate></txtNegate>
-            <n>{n}</n>
-            <lenght_biased>false</lenght_biased>
-        </getNearestNeighboursList>
-        """
+            <getNearestNeighboursList xmlns='http://tempuri.org/'>
+                <code>{gallito_code}</code>
+                <a>{word}</a>
+                <txtNegate></txtNegate>
+                <n>{n}</n>
+                <lenght_biased>false</lenght_biased>
+            </getNearestNeighboursList>
+            """
 
     space_url = f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getNearestNeighboursList"
     response = requests.post(space_url, data=query_xml, headers={'Content-Type': 'text/xml'})
@@ -77,22 +67,14 @@ def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100, 
         vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_vector_content)
         return np.array([float(value.replace(',', '.')) for value in vector_values])
 
-    # Obtener vectores de términos en paralelo con barra de progreso
+    # Obtener vectores de términos en paralelo
     with ThreadPoolExecutor() as executor:
-        vectors = list(tqdm(executor.map(get_vector, terms), total=len(terms), desc="Obteniendo vectores"))
+        term_vectors = list(tqdm(executor.map(get_vector, terms), total=len(terms), desc="Obteniendo vectores"))
 
-    matrix = np.array(vectors).T
+    # Crear diccionario de términos y vectores
+    neighbors_dict = {term: vec for term, vec in zip(terms, term_vectors)}
 
-    # Vector del término objetivo
-    word_vector = get_vector(word)
-
-    # Calcular la correlación y filtrar por el mínimo coseno
-    cosines = np.dot(matrix.T, word_vector) / (np.linalg.norm(matrix.T, axis=1) * np.linalg.norm(word_vector))
-    selected_rows = matrix.T[cosines > min_cosine_contour]
-
-    results = {"neighbors": terms, "neighbors_vec": selected_rows}
-
-    return results
+    return neighbors_dict
 
 def get_superterm_gallito(terms_file, gallito_code, space_name):
     """
@@ -147,7 +129,7 @@ def get_superterm_gallito(terms_file, gallito_code, space_name):
 ## CONTOURS EVALUATION FUNCTIONS ##
 ###################################
 
-def neighbors_similarity(word_semantic_vector, word_neighbors_matrix):
+def neighbors_similarity(word_semantic_vector, word_neighbors_dict):
     """
     Calcula la similitud coseno entre un vector semántico de una palabra y cada vector
     en una matriz de vecinos, ordenando los resultados en orden descendente. También devuelve
@@ -168,22 +150,16 @@ def neighbors_similarity(word_semantic_vector, word_neighbors_matrix):
     con los términos correspondientes, ordena este array por similitud coseno en orden descendente, y finalmente
     separa y devuelve los vectores de similitudes coseno y términos en este orden.
     """
-    cosine_vec = np.zeros(word_neighbors_matrix["neighbors_vec"].shape[0])
-    terms = word_neighbors_matrix["neighbors"]
+    # Calcular la similitud coseno para cada vecino en el diccionario
+    cosine_similarities = {}
+    for term, neighbor_vector in word_neighbors_dict.items():
+        cosine_similarity = word_cosine_similarity(neighbor_vector, word_semantic_vector)
+        cosine_similarities[term] = cosine_similarity
 
-    for i in range(word_neighbors_matrix["neighbors_vec"].shape[0]):
-        cosine_vec[i] = word_cosine_similarity(word_neighbors_matrix["neighbors_vec"][i, :], word_semantic_vector)
+    # Ordenar el diccionario basado en las similitudes coseno en orden descendente
+    sorted_cosine_similarities = dict(sorted(cosine_similarities.items(), key=lambda item: item[1], reverse=True))
 
-    # Crea un array estructurado para mantener juntos los cosenos y los términos
-    combined = np.array(list(zip(cosine_vec, terms)), dtype=[('cosine', 'f4'), ('term', 'U20')])
-
-    # Ordena el array basado en las similitudes coseno
-    combined_sorted = np.sort(combined, order='cosine')[::-1]
-
-    # Separa y devuelve los vectores de cosenos y términos
-    sorted_cosines = combined_sorted['cosine']
-    sorted_terms = combined_sorted['term']
-    return sorted_cosines, sorted_terms
+    return sorted_cosine_similarities
 
 
 def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
