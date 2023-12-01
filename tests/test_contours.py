@@ -1,8 +1,9 @@
 import os
 import numpy as np
 import pandas as pd
-from QSub.contours import get_neighbors_matrix_gallito, neighbors_similarity, get_superterm_gallito, deserved_neighbors
-from QSub.semantic_spaces import get_word_vector_gallito
+from QSub.contours import (get_neighbors_matrix_gallito, neighbors_similarity, get_superterm_gallito,
+                           deserved_neighbors, find_closest_neighbors_lsa)
+from QSub.semantic_spaces import get_word_vector_gallito, get_lsa_corpus_gallito
 
 def test_gallito_neighbors_matrix():
     # Parámetros de prueba
@@ -77,3 +78,20 @@ def test_deserved_neighbors():
     # Comprobamos los tests
     assert resultado > 0  # Comprueba que el resultado es mayor que 0
     assert type(resultado) == int  # Comprueba que el resultado es un int
+
+def test_find_closest_neighbors_lsa():
+    # Parámetros de prueba
+    test_word = "mundo"
+    test_vocabulary_path = "/home/alex/Documents/RESEARCH/QSub/resources/vocabulario_test_sp.txt"  # Cambiar la ruta absoluta para tests en otros dispositivos
+    test_code = os.getenv('GALLITO_API_KEY', 'default_code')
+    test_space_name = "quantumlikespace_spanish"
+    test_neighbors = 5
+
+    # Ejecutamos la función
+    test_corpus = get_lsa_corpus_gallito(test_vocabulary_path, test_code, test_space_name)
+    resultado = find_closest_neighbors_lsa(test_word, test_corpus, n_neighbors=test_neighbors)
+
+    # Comprobamos los tests
+    assert type(resultado) is dict  # Comprueba que el resultado es un dict
+    assert type(list(resultado.keys())[0]) == str  # Comprueba que las keys son strings
+    assert type(list(resultado.values())[0]) == np.ndarray # Comprueba que los values son ndarrays

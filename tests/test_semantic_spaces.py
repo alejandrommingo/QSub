@@ -45,3 +45,5 @@ def test_lsa_corpus():
 
     # Comprobamos los tests
     assert type(resultado) == dict  # Comprueba que el resultado es un dict
+    assert type(list(resultado.keys())[0]) == str  # Comprueba que las keys son strings
+    assert type(list(resultado.values())[0]) == np.ndarray  # Comprueba que los values son ndarrays

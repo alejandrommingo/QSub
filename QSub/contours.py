@@ -128,6 +128,40 @@ def get_superterm_gallito(terms_file, gallito_code, space_name):
 ###################################
 ## CONTOURS EVALUATION FUNCTIONS ##
 ###################################
+def find_closest_neighbors_lsa(word, lsa_corpus, n_neighbors=10):
+    """
+    Encuentra los n_neighbors más cercanos a una palabra dada en un corpus LSA.
+
+    :param word: La palabra objetivo para encontrar vecinos.
+    :type word: str
+    :param lsa_corpus: Un diccionario que contiene palabras y sus vectores semánticos.
+    :type lsa_corpus: dict
+    :param n_neighbors: Número de vecinos más cercanos a devolver.
+    :type n_neighbors: int
+    :return: Un diccionario con los términos vecinos como claves y sus vectores semánticos como valores.
+    :rtype: dict
+    """
+
+    if word not in lsa_corpus:
+        raise ValueError(f"La palabra '{word}' no se encuentra en el corpus.")
+
+    # Vector de la palabra objetivo
+    word_vector = lsa_corpus[word]
+
+    # Preparar los vectores del corpus para el cálculo vectorizado, excluyendo el vector de la palabra objetivo
+    corpus_terms, corpus_vectors = zip(*[(term, vector) for term, vector in lsa_corpus.items() if term != word])
+    corpus_matrix = np.stack(corpus_vectors)
+
+    # Calcular similitudes coseno de manera vectorizada
+    dot_product = np.dot(corpus_matrix, word_vector)
+    norm_product = np.linalg.norm(word_vector) * np.linalg.norm(corpus_matrix, axis=1)
+    similarities = dot_product / norm_product
+
+    # Ordenar los resultados y tomar los top n_neighbors
+    sorted_indices = np.argsort(-similarities)[:n_neighbors]
+    closest_neighbors_dict = {corpus_terms[i]: lsa_corpus[corpus_terms[i]] for i in sorted_indices}
+
+    return closest_neighbors_dict
 
 def neighbors_similarity(word_semantic_vector, word_neighbors_dict):
     """
@@ -227,4 +261,6 @@ def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines):
     plt.show()
 
     return sum_value
+
+
 
