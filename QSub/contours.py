@@ -171,10 +171,10 @@ def neighbors_similarity(word_semantic_vector, word_neighbors_dict):
 
     :param word_semantic_vector: El vector semántico de la palabra objetivo.
     :type word_semantic_vector: numpy.ndarray
-    :param word_neighbors_matrix: Un diccionario que contiene dos elementos:
+    :param word_neighbors_dict: Un diccionario que contiene dos elementos:
                                   "neighbors_vec" que es un ndarray con los vectores de los vecinos semánticos,
                                   y "neighbors" que es una lista de los términos correspondientes a esos vecores.
-    :type word_neighbors_matrix: dict
+    :type word_neighbors_dict: dict
     :return: Una tupla de dos ndarrays. El primero contiene las similitudes coseno ordenadas en orden descendente,
              y el segundo contiene los términos asociados ordenados en concordancia con las similitudes coseno.
     :rtype: tuple
