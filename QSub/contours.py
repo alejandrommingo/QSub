@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import html
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+from numpy.linalg import norm
 from QSub.semantic_spaces import get_word_vector_gallito, word_cosine_similarity
 
 # In this module you can find all functions related to the creation of contextual and conceptual contours
@@ -65,7 +66,10 @@ def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100):
         vector_response = requests.get(vector_url)
         decoded_vector_content = html.unescape(vector_response.text)
         vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_vector_content)
-        return np.array([float(value.replace(',', '.')) for value in vector_values])
+        vector = np.array([float(value.replace(',', '.')) for value in vector_values])
+        # Normalizar el vector
+        normalized_vector = vector / norm(vector)
+        return normalized_vector
 
     # Obtener vectores de términos en paralelo
     with ThreadPoolExecutor() as executor:
