@@ -37,7 +37,7 @@ def parallel_analysis_horn(data_matrix, analysis_type='Terms', num_simulations=1
 
     # Generar datos aleatorios y calcular la media de sus valores propios
     random_eigenvalues = np.zeros(pca.n_components_)
-    for i in tqdm(range(num_simulations), desc="Simulando datos aleatorios"):
+    for _ in tqdm(range(num_simulations), desc="Simulando datos aleatorios"):
         random_data = np.random.normal(0, 1, data_matrix.shape)
         pca_random = PCA(n_components=pca.n_components_)
         pca_random.fit(random_data)
