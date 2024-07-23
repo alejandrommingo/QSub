@@ -29,7 +29,7 @@ def get_word_vector_gallito(word, gallito_code, space_name):
     """
     # Extraer el vector del término objetivo
     resp = requests.get(
-        f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}", timeout=10)
+        f"http://comcog.psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={word}", timeout=10)
     content = resp.text
     # Decodificar las entidades HTML
     decoded_content = html.unescape(content)

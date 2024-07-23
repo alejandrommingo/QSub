@@ -48,7 +48,7 @@ def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100):
             </getNearestNeighboursList>
             """
 
-    space_url = f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getNearestNeighboursList"
+    space_url = f"http://comcog.psicoee.uned.es/{space_name}/Service.svc/webHttp/getNearestNeighboursList"
     response = requests.post(space_url, data=query_xml, headers={'Content-Type': 'text/xml'}, timeout=10)
 
     decoded_content = html.unescape(response.text)
@@ -62,7 +62,7 @@ def get_neighbors_matrix_gallito(word, gallito_code, space_name, neighbors=100):
 
     # Función para obtener el vector de un término
     def get_vector(term):
-        vector_url = f"http://psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={term}"
+        vector_url = f"http://comcog.psicoee.uned.es/{space_name}/Service.svc/webHttp/getVectorOfTerm?code={gallito_code}&a={term}"
         vector_response = requests.get(vector_url, timeout=10)
         decoded_vector_content = html.unescape(vector_response.text)
         vector_values = re.findall(r'<dim>(.*?)</dim>', decoded_vector_content)
@@ -268,6 +268,3 @@ def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines, graph=False)
         plt.show()
 
     return sum_value
-
-
-
