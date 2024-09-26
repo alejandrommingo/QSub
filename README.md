@@ -35,3 +35,9 @@ We welcome contributions to the QSub Library! If you have suggestions for improv
 ## License
 
 This project is licensed under the [GNU General Public License](LICENSE).
+
+## Citing this repository
+
+If you use this repository in your research, please cite it as follows:
+
+Martinez-Mingo, A. (2024). *QSub: Quantum Subspaces*. GitHub repository. Available at: https://github.com/alejandrommingo/QSub
