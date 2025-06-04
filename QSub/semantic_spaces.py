@@ -4,6 +4,9 @@ import re
 import html
 import concurrent.futures
 from tqdm import tqdm
+from transformers import AutoTokenizer, AutoModel
+import torch
+from wordfreq import top_n_list
 
 #############################################
 ## GALLITO BASED SEMANTIC SPACE OPERATIONS ##
@@ -74,6 +77,43 @@ def get_lsa_corpus_gallito(terms_file, gallito_code, space_name):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for term, vector in tqdm(executor.map(get_term_vector, individual_terms),
                                  total=len(individual_terms),
+                                 desc="Procesando términos"):
+            corpus_dict[term] = np.array(vector)
+
+    return corpus_dict
+
+#############################################
+## BERT BASED SEMANTIC SPACE OPERATIONS    ##
+#############################################
+
+_bert_models = {}
+
+def get_word_vector_bert(word, model_name="bert-base-uncased"):
+    """Return the static BERT embedding for a given word."""
+    if model_name not in _bert_models:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModel.from_pretrained(model_name)
+        model.eval()
+        _bert_models[model_name] = (tokenizer, model)
+    tokenizer, model = _bert_models[model_name]
+    inputs = tokenizer(word, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs)
+    vector = outputs.last_hidden_state.mean(dim=1).squeeze()
+    return vector.numpy()
+
+
+def get_bert_corpus(language="en", model_name="bert-base-uncased", n_words=1000):
+    """Return a dictionary with BERT vectors of the most frequent words."""
+    words = top_n_list(language, n_words)
+
+    def get_vector(term):
+        return term, get_word_vector_bert(term, model_name)
+
+    corpus_dict = {}
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for term, vector in tqdm(executor.map(get_vector, words),
+                                 total=len(words),
                                  desc="Procesando términos"):
             corpus_dict[term] = np.array(vector)
 
