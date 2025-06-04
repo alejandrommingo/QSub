@@ -47,3 +47,13 @@ def test_lsa_corpus():
     assert type(resultado) == dict  # Comprueba que el resultado es un dict
     assert type(list(resultado.keys())[0]) == str  # Comprueba que las keys son strings
     assert type(list(resultado.values())[0]) == np.ndarray  # Comprueba que los values son ndarrays
+
+
+def test_word_cosine_similarity_zero_vector():
+    """La similitud coseno con un vector nulo debe ser 0."""
+    vec_a = np.array([1.0, 0.0, 0.0])
+    vec_b = np.array([0.0, 0.0, 0.0])
+
+    resultado = word_cosine_similarity(vec_a, vec_b)
+
+    assert resultado == 0.0

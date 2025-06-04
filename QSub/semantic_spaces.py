@@ -99,5 +99,12 @@ def word_cosine_similarity(v1, v2):
     La similitud coseno se define como el producto punto de los vectores dividido por el producto
     de sus magnitudes (normas).
     """
-    cos_sim = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    norm1 = np.linalg.norm(v1)
+    norm2 = np.linalg.norm(v2)
+
+    # Evitar divisiones por cero si alguno de los vectores es nulo
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+
+    cos_sim = np.dot(v1, v2) / (norm1 * norm2)
     return cos_sim
