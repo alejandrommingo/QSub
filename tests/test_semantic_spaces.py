@@ -62,12 +62,16 @@ def test_word_cosine_similarity_zero_vector():
 
     assert resultado == 0.0
 
-
-def test_word_vector_bert():
+def test_word_vector_bert_last():
     result = spaces.get_word_vector_bert("hello")
     assert isinstance(result, np.ndarray)
     assert result.shape == (768,)
 
+
+def test_word_vector_bert_all_layers():
+    result = spaces.get_word_vector_bert("hello", output_layer="all")
+    assert isinstance(result, np.ndarray)
+    assert result.shape[1] == 768
 
 def test_bert_corpus():
     data = spaces.get_bert_corpus(language="en", n_words=5)
@@ -75,4 +79,9 @@ def test_bert_corpus():
     assert len(data) == 5
     assert isinstance(list(data.values())[0], np.ndarray)
 
+
+def test_bert_corpus_all_layers():
+    data = spaces.get_bert_corpus(language="en", n_words=3, output_layer="all")
+    assert isinstance(list(data.values())[0], np.ndarray)
+    assert list(data.values())[0].shape[1] == 768
 

@@ -23,10 +23,19 @@ def stub_gallito(monkeypatch):
     def dummy_superterm(path, code, space):
         return np.random.rand(300), np.random.rand(10)
 
-    def dummy_word_vector_bert(word, model_name="bert-base-uncased"):
+    def dummy_word_vector_bert(word, model_name="bert-base-uncased", output_layer="last"):
+        if output_layer == "all":
+            return np.random.rand(12, 768)
         return np.random.rand(768)
 
-    def dummy_bert_corpus(language="en", model_name="bert-base-uncased", n_words=1000):
+    def dummy_bert_corpus(
+        language="en",
+        model_name="bert-base-uncased",
+        n_words=1000,
+        output_layer="last",
+    ):
+        if output_layer == "all":
+            return {f"{language}_{i}": np.random.rand(12, 768) for i in range(n_words)}
         return {f"{language}_{i}": np.random.rand(768) for i in range(n_words)}
 
     monkeypatch.setattr(contours, "get_neighbors_matrix_gallito", dummy_neighbors)

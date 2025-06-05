@@ -6,7 +6,7 @@ The `QSub` Library is a Python package designed for creating and manipulating se
 
 ## Features
 
-- **Semantic Space Construction**: Utilize models like LSA (Latent Semantic Analysis), Word2Vec, and BERT to construct semantic spaces. New helper functions `get_word_vector_bert` and `get_bert_corpus` enable extraction of static embeddings from HuggingFace models.
+- **Semantic Space Construction**: Utilize models like LSA (Latent Semantic Analysis), Word2Vec, and BERT to construct semantic spaces. Helper functions `get_word_vector_bert` and `get_bert_corpus` allow extracting vectors from any BERT layer or all layers.
 - **Contour Generation**: Generate semantic contours for given terms within these spaces.
 - **Subspace Creation**: Develop and manipulate subspaces based on semantic contours.
 
@@ -25,6 +25,10 @@ The BERT utilities are optional. Install the extra dependencies with:
 ```bash
 pip install .[bert]
 ```
+
+The BERT helper functions accept an ``output_layer`` argument to select a
+specific hidden layer (by index), ``"last"`` for the final layer (default) or
+``"all"`` to obtain a matrix with all layers.
 
 ## Usage
 
