@@ -20,6 +20,12 @@ cd QSub
 pip install .
 ```
 
+The BERT utilities require additional optional dependencies:
+
+```bash
+pip install transformers torch wordfreq
+```
+
 ## Usage
 
 QSub is in its first alpha version. You can find the first use example in our [Conceptual Contour Notebook](https://github.com/alejandrommingo/QSub/blob/main/notebooks/QSub_conceptual_contour_example.ipynb)

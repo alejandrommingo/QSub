@@ -4,9 +4,21 @@ import re
 import html
 import concurrent.futures
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModel
-import torch
-from wordfreq import top_n_list
+try:
+    from transformers import AutoTokenizer, AutoModel
+except ImportError:  # pragma: no cover - optional dependency
+    AutoTokenizer = None
+    AutoModel = None
+
+try:  # pragma: no cover - optional dependency
+    import torch
+except ImportError:  # pragma: no cover - optional dependency
+    torch = None
+
+try:  # pragma: no cover - optional dependency
+    from wordfreq import top_n_list
+except ImportError:  # pragma: no cover - optional dependency
+    top_n_list = None
 
 #############################################
 ## GALLITO BASED SEMANTIC SPACE OPERATIONS ##
@@ -89,7 +101,16 @@ def get_lsa_corpus_gallito(terms_file, gallito_code, space_name):
 _bert_models = {}
 
 def get_word_vector_bert(word, model_name="bert-base-uncased"):
-    """Return the static BERT embedding for a given word."""
+    """Return the static BERT embedding for a given word.
+
+    This function lazily loads the HuggingFace model the first time it is
+    invoked. If the required optional dependencies ``transformers`` or ``torch``
+    are not installed, an :class:`ImportError` is raised.
+    """
+    if AutoTokenizer is None or AutoModel is None or torch is None:
+        raise ImportError(
+            "transformers and torch must be installed to use get_word_vector_bert"
+        )
     if model_name not in _bert_models:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModel.from_pretrained(model_name)
@@ -104,7 +125,14 @@ def get_word_vector_bert(word, model_name="bert-base-uncased"):
 
 
 def get_bert_corpus(language="en", model_name="bert-base-uncased", n_words=1000):
-    """Return a dictionary with BERT vectors of the most frequent words."""
+    """Return a dictionary with BERT vectors of the most frequent words.
+
+    Optional dependency ``wordfreq`` is used to obtain the most frequent terms
+    for the chosen language. If any of the required libraries are missing,
+    an :class:`ImportError` is raised.
+    """
+    if top_n_list is None:
+        raise ImportError("wordfreq must be installed to use get_bert_corpus")
     words = top_n_list(language, n_words)
 
     def get_vector(term):
