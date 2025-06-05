@@ -100,31 +100,66 @@ def get_lsa_corpus_gallito(terms_file, gallito_code, space_name):
 
 _bert_models = {}
 
-def get_word_vector_bert(word, model_name="bert-base-uncased"):
-    """Return the static BERT embedding for a given word.
 
-    This function lazily loads the HuggingFace model the first time it is
-    invoked. If the required optional dependencies ``transformers`` or ``torch``
-    are not installed, an :class:`ImportError` is raised.
+def _load_bert(model_name):
+    """Load tokenizer and model for ``model_name`` with hidden states."""
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name, output_hidden_states=True)
+    model.eval()
+    return tokenizer, model
+
+
+def get_word_vector_bert(word, model_name="bert-base-uncased", output_layer="last"):
+    """Return BERT embeddings for a given word.
+
+    Parameters
+    ----------
+    word : str
+        Target word.
+    model_name : str, optional
+        HuggingFace model name.
+    output_layer : str | int, optional
+        ``"last"`` (default) returns the final layer. An integer selects the
+        corresponding intermediate layer (0-indexed). ``"all"`` returns an array
+        with one vector per layer.
     """
     if AutoTokenizer is None or AutoModel is None or torch is None:
         raise ImportError(
             "transformers and torch must be installed to use get_word_vector_bert"
         )
+
     if model_name not in _bert_models:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModel.from_pretrained(model_name)
-        model.eval()
-        _bert_models[model_name] = (tokenizer, model)
+        _bert_models[model_name] = _load_bert(model_name)
+
     tokenizer, model = _bert_models[model_name]
     inputs = tokenizer(word, return_tensors="pt")
     with torch.no_grad():
         outputs = model(**inputs)
-    vector = outputs.last_hidden_state.mean(dim=1).squeeze()
-    return vector.numpy()
+
+    if output_layer == "last":
+        vector = outputs.last_hidden_state.mean(dim=1).squeeze()
+        return vector.numpy()
+
+    if output_layer == "all":
+        hidden = [h.mean(dim=1).squeeze().numpy() for h in outputs.hidden_states[1:]]
+        return np.stack(hidden)
+
+    if isinstance(output_layer, int):
+        hidden_states = outputs.hidden_states[1:]
+        if output_layer < 0 or output_layer >= len(hidden_states):
+            raise ValueError("output_layer out of range")
+        vector = hidden_states[output_layer].mean(dim=1).squeeze()
+        return vector.numpy()
+
+    raise ValueError("output_layer must be 'last', 'all', or an integer index")
 
 
-def get_bert_corpus(language="en", model_name="bert-base-uncased", n_words=1000):
+def get_bert_corpus(
+    language="en",
+    model_name="bert-base-uncased",
+    n_words=1000,
+    output_layer="last",
+):
     """Return a dictionary with BERT vectors of the most frequent words.
 
     Optional dependency ``wordfreq`` is used to obtain the most frequent terms
@@ -136,7 +171,7 @@ def get_bert_corpus(language="en", model_name="bert-base-uncased", n_words=1000)
     words = top_n_list(language, n_words)
 
     def get_vector(term):
-        return term, get_word_vector_bert(term, model_name)
+        return term, get_word_vector_bert(term, model_name, output_layer)
 
     corpus_dict = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
