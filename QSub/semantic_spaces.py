@@ -4,6 +4,21 @@ import re
 import html
 import concurrent.futures
 from tqdm import tqdm
+try:
+    from transformers import AutoTokenizer, AutoModel
+except ImportError:  # pragma: no cover - optional dependency
+    AutoTokenizer = None
+    AutoModel = None
+
+try:  # pragma: no cover - optional dependency
+    import torch
+except ImportError:  # pragma: no cover - optional dependency
+    torch = None
+
+try:  # pragma: no cover - optional dependency
+    from wordfreq import top_n_list
+except ImportError:  # pragma: no cover - optional dependency
+    top_n_list = None
 
 #############################################
 ## GALLITO BASED SEMANTIC SPACE OPERATIONS ##
@@ -74,6 +89,59 @@ def get_lsa_corpus_gallito(terms_file, gallito_code, space_name):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for term, vector in tqdm(executor.map(get_term_vector, individual_terms),
                                  total=len(individual_terms),
+                                 desc="Procesando términos"):
+            corpus_dict[term] = np.array(vector)
+
+    return corpus_dict
+
+#############################################
+## BERT BASED SEMANTIC SPACE OPERATIONS    ##
+#############################################
+
+_bert_models = {}
+
+def get_word_vector_bert(word, model_name="bert-base-uncased"):
+    """Return the static BERT embedding for a given word.
+
+    This function lazily loads the HuggingFace model the first time it is
+    invoked. If the required optional dependencies ``transformers`` or ``torch``
+    are not installed, an :class:`ImportError` is raised.
+    """
+    if AutoTokenizer is None or AutoModel is None or torch is None:
+        raise ImportError(
+            "transformers and torch must be installed to use get_word_vector_bert"
+        )
+    if model_name not in _bert_models:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModel.from_pretrained(model_name)
+        model.eval()
+        _bert_models[model_name] = (tokenizer, model)
+    tokenizer, model = _bert_models[model_name]
+    inputs = tokenizer(word, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs)
+    vector = outputs.last_hidden_state.mean(dim=1).squeeze()
+    return vector.numpy()
+
+
+def get_bert_corpus(language="en", model_name="bert-base-uncased", n_words=1000):
+    """Return a dictionary with BERT vectors of the most frequent words.
+
+    Optional dependency ``wordfreq`` is used to obtain the most frequent terms
+    for the chosen language. If any of the required libraries are missing,
+    an :class:`ImportError` is raised.
+    """
+    if top_n_list is None:
+        raise ImportError("wordfreq must be installed to use get_bert_corpus")
+    words = top_n_list(language, n_words)
+
+    def get_vector(term):
+        return term, get_word_vector_bert(term, model_name)
+
+    corpus_dict = {}
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for term, vector in tqdm(executor.map(get_vector, words),
+                                 total=len(words),
                                  desc="Procesando términos"):
             corpus_dict[term] = np.array(vector)
 
