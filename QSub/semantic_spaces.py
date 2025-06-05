@@ -100,7 +100,6 @@ def get_lsa_corpus_gallito(terms_file, gallito_code, space_name):
 
 _bert_models = {}
 
-
 def _load_bert(model_name):
     """Load tokenizer and model for ``model_name`` with hidden states."""
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -130,12 +129,10 @@ def get_word_vector_bert(word, model_name="bert-base-uncased", output_layer="las
 
     if model_name not in _bert_models:
         _bert_models[model_name] = _load_bert(model_name)
-
     tokenizer, model = _bert_models[model_name]
     inputs = tokenizer(word, return_tensors="pt")
     with torch.no_grad():
         outputs = model(**inputs)
-
     if output_layer == "last":
         vector = outputs.last_hidden_state.mean(dim=1).squeeze()
         return vector.numpy()
