@@ -20,7 +20,7 @@ def test_word_vector():
     assert resultado.size != 0
     assert resultado.shape == (test_space_dimensions,)
 
-def test_word_cosine_similarity():
+def test_cosine_similarity():
     # Parámetros de prueba
     test_word_a = "china"
     test_word_b = "corea_del_norte"
@@ -31,7 +31,7 @@ def test_word_cosine_similarity():
     resultado_a = spaces.get_word_vector_gallito(test_word_a, test_code, test_space_name)
     resultado_b = spaces.get_word_vector_gallito(test_word_b, test_code, test_space_name)
 
-    resultado = spaces.word_cosine_similarity(resultado_a, resultado_b)
+    resultado = spaces.cosine_similarity(resultado_a, resultado_b)
 
     # Comprobamos los tests
     assert isinstance(resultado, np.float64)
@@ -53,12 +53,12 @@ def test_lsa_corpus():
     assert isinstance(list(resultado.values())[0], np.ndarray)
 
 
-def test_word_cosine_similarity_zero_vector():
+def test_cosine_similarity_zero_vector():
     """La similitud coseno con un vector nulo debe ser 0."""
     vec_a = np.array([1.0, 0.0, 0.0])
     vec_b = np.array([0.0, 0.0, 0.0])
 
-    resultado = spaces.word_cosine_similarity(vec_a, vec_b)
+    resultado = spaces.cosine_similarity(vec_a, vec_b)
 
     assert resultado == 0.0
 
@@ -135,4 +135,85 @@ def test_word_vector_distilbert():
 def test_distilbert_corpus():
     data = spaces.get_distilbert_corpus(language="en", n_words=2)
     assert isinstance(data, dict)
+
+
+def test_vector_add_subtract():
+    v1 = np.array([1, 2, 3])
+    v2 = np.array([4, 5, 6])
+    assert np.array_equal(spaces.vector_add(v1, v2), np.array([5, 7, 9]))
+    assert np.array_equal(spaces.vector_subtract(v2, v1), np.array([3, 3, 3]))
+
+
+def test_scalar_multiply_and_dot():
+    v = np.array([1, 2, 3])
+    assert np.array_equal(spaces.scalar_multiply(2, v), np.array([2, 4, 6]))
+    assert spaces.dot_product(v, v) == 14
+
+
+def test_norms_and_unit_vector():
+    v = np.array([3.0, 4.0])
+    assert spaces.l2_norm(v) == 5.0
+    assert spaces.l1_norm(v) == 7.0
+    assert spaces.linf_norm(v) == 4.0
+    unit = spaces.unit_vector(v)
+    assert np.allclose(unit, v / 5.0)
+
+
+def test_zscore():
+    v = np.array([1.0, 1.0, 1.0])
+    assert np.allclose(spaces.zscore(v), np.zeros_like(v))
+
+
+def test_covariance_matrix_and_svd():
+    X = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    cov = spaces.covariance_matrix(X)
+    expected = np.cov(X, rowvar=False, bias=False)
+    assert np.allclose(cov, expected)
+
+    U, S, Vt = spaces.compute_svd(X)
+    reconstructed = U @ np.diag(S) @ Vt
+    assert np.allclose(reconstructed, X)
+
+
+def test_basic_distances():
+    v1 = np.array([1.0, 2.0, 3.0])
+    v2 = np.array([4.0, 5.0, 6.0])
+
+    assert np.isclose(spaces.euclidean_distance(v1, v2), np.sqrt(27.0))
+    assert spaces.manhattan_distance(v1, v2) == 9.0
+    assert np.isclose(spaces.minkowski_distance(v1, v2, p=3), (3 ** 3 * 3) ** (1 / 3))
+    assert spaces.chebyshev_distance(v1, v2) == 3.0
+
+
+def test_mahalanobis_and_weighted_minkowski():
+    v1 = np.array([1.0, 2.0])
+    v2 = np.array([2.0, 4.0])
+    cov = np.eye(2)
+    assert np.isclose(spaces.mahalanobis_distance(v1, v2, cov), np.sqrt(5.0))
+
+    w = np.array([1.0, 2.0])
+    expected = np.sqrt(1.0 * 1.0 + 2.0 * 4.0)
+    assert np.isclose(spaces.weighted_minkowski_distance(v1, v2, p=2, w=w), expected)
+
+
+def test_distribution_metrics():
+    p = np.array([0.5, 0.5])
+    q = np.array([0.9, 0.1])
+    h = spaces.hellinger_distance(p, q)
+    kl = spaces.kl_divergence(p, q)
+    expected_kl = 0.5 * (np.log(0.5 / 0.9) + np.log(0.5 / 0.1))
+    assert np.isclose(kl, expected_kl)
+    assert h > 0
+
+
+def test_other_similarities():
+    v1 = np.array([1.0, 2.0, 3.0])
+    v2 = np.array([1.0, 2.0, 3.0])
+
+    assert np.isclose(spaces.pearson_similarity(v1, v2), 1.0)
+    assert spaces.angular_distance(v1, v2) == 0.0
+
+    b1 = np.array([1, 0, 1, 0])
+    b2 = np.array([1, 1, 0, 0])
+    assert np.isclose(spaces.jaccard_similarity(b1, b2), 1 / 3)
 
