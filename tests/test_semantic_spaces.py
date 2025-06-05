@@ -85,3 +85,54 @@ def test_bert_corpus_all_layers():
     assert isinstance(list(data.values())[0], np.ndarray)
     assert list(data.values())[0].shape[1] == 768
 
+
+def test_word_vector_gpt2_last():
+    result = spaces.get_word_vector_gpt2("hello")
+    assert isinstance(result, np.ndarray)
+
+
+def test_gpt2_corpus():
+    data = spaces.get_gpt2_corpus(language="en", n_words=2)
+    assert isinstance(data, dict)
+    assert len(data) == 2
+
+
+def test_word_vector_word2vec():
+    result = spaces.get_word_vector_word2vec("hello")
+    assert isinstance(result, np.ndarray)
+
+
+def test_word2vec_corpus():
+    data = spaces.get_word2vec_corpus(language="en", n_words=2)
+    assert isinstance(data, dict)
+
+
+def test_word_vector_glove():
+    result = spaces.get_word_vector_glove("hello")
+    assert isinstance(result, np.ndarray)
+
+
+def test_glove_corpus():
+    data = spaces.get_glove_corpus(language="en", n_words=2)
+    assert isinstance(data, dict)
+
+
+def test_word_vector_elmo_average():
+    result = spaces.get_word_vector_elmo("hello")
+    assert isinstance(result, np.ndarray)
+
+
+def test_elmo_corpus():
+    data = spaces.get_elmo_corpus(language="en", n_words=2)
+    assert isinstance(data, dict)
+
+
+def test_word_vector_distilbert():
+    result = spaces.get_word_vector_distilbert("hello")
+    assert isinstance(result, np.ndarray)
+
+
+def test_distilbert_corpus():
+    data = spaces.get_distilbert_corpus(language="en", n_words=2)
+    assert isinstance(data, dict)
+
