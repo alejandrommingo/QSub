@@ -444,7 +444,160 @@ def get_distilbert_corpus(
 ## GENERAL SEMANTIC SPACE OPERATIONS ##
 #######################################
 
-def word_cosine_similarity(v1, v2):
+def vector_add(v1, v2):
+    """
+    Suma dos vectores elemento a elemento.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Vector resultante de la suma ``v1 + v2``.
+    :rtype: numpy.ndarray
+    """
+    return np.add(v1, v2)
+
+
+def vector_subtract(v1, v2):
+    """
+    Resta dos vectores elemento a elemento.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Vector resultante de ``v1 - v2``.
+    :rtype: numpy.ndarray
+    """
+    return np.subtract(v1, v2)
+
+
+def scalar_multiply(scalar, v):
+    """
+    Multiplica un vector por un escalar.
+
+    :param scalar: Valor escalar a multiplicar.
+    :type scalar: float | int
+    :param v: Vector objetivo.
+    :type v: numpy.ndarray
+    :return: Vector ``v`` escalado por ``scalar``.
+    :rtype: numpy.ndarray
+    """
+    return scalar * v
+
+
+def dot_product(v1, v2):
+    """
+    Calcula el producto punto entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Resultado escalar del producto ``v1 · v2``.
+    :rtype: float
+    """
+    return float(np.dot(v1, v2))
+
+
+def l2_norm(v):
+    """
+    Devuelve la norma euclidiana de un vector.
+
+    :param v: Vector objetivo.
+    :type v: numpy.ndarray
+    :return: Valor de la norma L2 de ``v``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v))
+
+
+def l1_norm(v):
+    """
+    Devuelve la norma L1 de un vector.
+
+    :param v: Vector objetivo.
+    :type v: numpy.ndarray
+    :return: Valor de la norma L1 de ``v``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v, ord=1))
+
+
+def linf_norm(v):
+    """
+    Devuelve la norma L∞ de un vector.
+
+    :param v: Vector objetivo.
+    :type v: numpy.ndarray
+    :return: Valor de la norma L∞ de ``v``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v, ord=np.inf))
+
+
+def unit_vector(v):
+    """
+    Normaliza un vector para que tenga norma unitaria.
+
+    :param v: Vector a normalizar.
+    :type v: numpy.ndarray
+    :return: Vector ``v`` normalizado.
+    :rtype: numpy.ndarray
+    """
+    norm = np.linalg.norm(v)
+    if norm == 0:
+        return v
+    return v / norm
+
+
+def zscore(v):
+    """
+    Estandariza un vector restando la media y dividiendo por la desviación típica.
+
+    :param v: Vector a estandarizar.
+    :type v: numpy.ndarray
+    :return: Vector ``v`` transformado a puntuaciones z.
+    :rtype: numpy.ndarray
+    """
+    mean = np.mean(v)
+    std = np.std(v)
+    if std == 0:
+        return np.zeros_like(v)
+    return (v - mean) / std
+
+
+def covariance_matrix(X):
+    """
+    Calcula la matriz de covarianza de un conjunto de datos.
+
+    :param X: Matriz de datos donde cada fila es una observación.
+    :type X: numpy.ndarray
+    :return: Matriz de covarianza de ``X``.
+    :rtype: numpy.ndarray
+    """
+    X = np.asarray(X)
+    if X.ndim == 1:
+        X = X.reshape(1, -1)
+    X_centered = X - np.mean(X, axis=0)
+    n_samples = X_centered.shape[0]
+    if n_samples <= 1:
+        return np.zeros((X_centered.shape[1], X_centered.shape[1]))
+    return np.dot(X_centered.T, X_centered) / (n_samples - 1)
+
+
+def compute_svd(X):
+    """
+    Devuelve la descomposición en valores singulares (SVD) de una matriz.
+
+    :param X: Matriz de entrada.
+    :type X: numpy.ndarray
+    :return: Tupla ``(U, S, Vt)`` resultante de la SVD.
+    :rtype: tuple
+    """
+    return np.linalg.svd(X, full_matrices=False)
+
+def cosine_similarity(v1, v2):
     """
     Calcula la similitud coseno entre dos vectores.
 
@@ -469,3 +622,199 @@ def word_cosine_similarity(v1, v2):
 
     cos_sim = np.dot(v1, v2) / (norm1 * norm2)
     return cos_sim
+
+
+
+
+def euclidean_distance(v1, v2):
+    """
+    Devuelve la distancia euclídea entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Distancia euclídea entre ``v1`` y ``v2``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v1 - v2))
+
+
+def manhattan_distance(v1, v2):
+    """
+    Devuelve la distancia Manhattan (L1) entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Distancia L1 entre ``v1`` y ``v2``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v1 - v2, ord=1))
+
+
+def minkowski_distance(v1, v2, p=2):
+    """
+    Distancia de Minkowski generalizada entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :param p: Orden de la distancia.
+    :type p: int | float
+    :return: Distancia de Minkowski de orden ``p``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v1 - v2, ord=p))
+
+
+def chebyshev_distance(v1, v2):
+    """
+    Distancia de Chebyshev (L∞) entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Distancia L∞ entre ``v1`` y ``v2``.
+    :rtype: float
+    """
+    return float(np.linalg.norm(v1 - v2, ord=np.inf))
+
+
+def mahalanobis_distance(v1, v2, cov):
+    """
+    Calcula la distancia de Mahalanobis entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :param cov: Matriz de covarianza de los datos.
+    :type cov: numpy.ndarray
+    :return: Distancia de Mahalanobis.
+    :rtype: float
+    """
+    diff = v1 - v2
+    inv_cov = np.linalg.pinv(cov)
+    return float(np.sqrt(diff.T @ inv_cov @ diff))
+
+
+def weighted_minkowski_distance(v1, v2, p=2, w=None):
+    """
+    Distancia de Minkowski ponderada entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :param p: Orden de la distancia.
+    :type p: int | float
+    :param w: Pesos de cada dimensión.
+    :type w: numpy.ndarray | None
+    :return: Distancia ponderada de Minkowski.
+    :rtype: float
+    """
+    v1 = np.asarray(v1)
+    v2 = np.asarray(v2)
+    if w is None:
+        w = np.ones_like(v1)
+    diff = np.abs(v1 - v2)
+    return float(np.power(np.sum(w * diff ** p), 1.0 / p))
+
+
+def hellinger_distance(p, q):
+    """
+    Distancia de Hellinger para distribuciones de probabilidad.
+
+    :param p: Distribución de probabilidad ``p``.
+    :type p: numpy.ndarray
+    :param q: Distribución de probabilidad ``q``.
+    :type q: numpy.ndarray
+    :return: Distancia de Hellinger entre ``p`` y ``q``.
+    :rtype: float
+    """
+    p = np.asarray(p, dtype=float)
+    q = np.asarray(q, dtype=float)
+    return float(np.linalg.norm(np.sqrt(p) - np.sqrt(q)) / np.sqrt(2))
+
+
+def kl_divergence(p, q, epsilon=1e-12):
+    """
+    Divergencia de Kullback-Leibler entre dos distribuciones.
+
+    :param p: Distribución de probabilidad ``p``.
+    :type p: numpy.ndarray
+    :param q: Distribución de probabilidad ``q``.
+    :type q: numpy.ndarray
+    :param epsilon: Valor de suavizado para evitar logaritmos de cero.
+    :type epsilon: float
+    :return: Valor de la divergencia KL ``D(p‖q)``.
+    :rtype: float
+    """
+    p = np.asarray(p, dtype=float)
+    q = np.asarray(q, dtype=float)
+    p = np.clip(p, epsilon, None)
+    q = np.clip(q, epsilon, None)
+    return float(np.sum(p * np.log(p / q)))
+
+
+def pearson_similarity(v1, v2):
+    """
+    Calcula la similitud de correlación de Pearson.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Coeficiente de correlación de Pearson entre ``v1`` y ``v2``.
+    :rtype: float
+    """
+    v1 = np.asarray(v1)
+    v2 = np.asarray(v2)
+    v1_mean = v1 - np.mean(v1)
+    v2_mean = v2 - np.mean(v2)
+    numerator = np.dot(v1_mean, v2_mean)
+    denominator = np.linalg.norm(v1_mean) * np.linalg.norm(v2_mean)
+    if denominator == 0:
+        return 0.0
+    return float(numerator / denominator)
+
+
+def angular_distance(v1, v2):
+    """
+    Devuelve la distancia angular normalizada entre dos vectores.
+
+    :param v1: Primer vector.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector.
+    :type v2: numpy.ndarray
+    :return: Distancia angular en el rango ``[0, 1]``.
+    :rtype: float
+    """
+    cos_sim = cosine_similarity(v1, v2)
+    cos_sim = np.clip(cos_sim, -1.0, 1.0)
+    angle = np.arccos(cos_sim)
+    return float(angle / np.pi)
+
+
+def jaccard_similarity(v1, v2):
+    """
+    Calcula la similitud de Jaccard para vectores binarios.
+
+    :param v1: Primer vector binario.
+    :type v1: numpy.ndarray
+    :param v2: Segundo vector binario.
+    :type v2: numpy.ndarray
+    :return: Coeficiente de Jaccard entre ``v1`` y ``v2``.
+    :rtype: float
+    """
+    v1 = np.asarray(v1).astype(bool)
+    v2 = np.asarray(v2).astype(bool)
+    intersection = np.sum(np.logical_and(v1, v2))
+    union = np.sum(np.logical_or(v1, v2))
+    if union == 0:
+        return 0.0
+    return float(intersection / union)

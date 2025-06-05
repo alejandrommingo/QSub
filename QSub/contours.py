@@ -9,7 +9,7 @@ import html
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from numpy.linalg import norm
-from QSub.semantic_spaces import get_word_vector_gallito, word_cosine_similarity
+from QSub.semantic_spaces import get_word_vector_gallito, cosine_similarity
 
 # In this module you can find all functions related to the creation of contextual and conceptual contours
 
@@ -125,7 +125,7 @@ def get_superterm_gallito(terms_file, gallito_code, space_name):
                 superterm_vector += term_vector
 
     # Calcular las similitudes coseno
-    cosine_similarities = np.array([word_cosine_similarity(superterm_vector, v) for v in individual_vectors])
+    cosine_similarities = np.array([cosine_similarity(superterm_vector, v) for v in individual_vectors])
 
     return superterm_vector, cosine_similarities
 
@@ -191,8 +191,8 @@ def neighbors_similarity(word_semantic_vector, word_neighbors_dict):
     # Calcular la similitud coseno para cada vecino en el diccionario
     cosine_similarities = {}
     for term, neighbor_vector in word_neighbors_dict.items():
-        cosine_similarity = word_cosine_similarity(neighbor_vector, word_semantic_vector)
-        cosine_similarities[term] = cosine_similarity
+        cos_sim = cosine_similarity(neighbor_vector, word_semantic_vector)
+        cosine_similarities[term] = cos_sim
 
     # Ordenar el diccionario basado en las similitudes coseno en orden descendente
     sorted_cosine_similarities = dict(sorted(cosine_similarities.items(), key=lambda item: item[1], reverse=True))
