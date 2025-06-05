@@ -10,13 +10,15 @@ setup(
         'requests',
         'matplotlib',
         'fuzzywuzzy',
-        'transformers',
-        'gensim',
         'pytest',
         'tqdm',
         'python-Levenshtein',
         'scikit-learn'
     ],
+    extras_require={
+        'bert': ['transformers', 'torch', 'wordfreq'],
+        'lsa': ['gensim']
+    },
     include_package_data=True,  # Asegúrate de incluir esto
     package_data={
         'QSub': ['resources/*']  # Incluye todos los archivos en la carpeta resources
