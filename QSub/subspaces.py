@@ -5,6 +5,8 @@ from tqdm import tqdm
 from numpy.linalg import norm
 from wordcloud import WordCloud
 
+from . import contours
+
 def parallel_analysis_horn(data_matrix, analysis_type='Terms', num_simulations=100, graph=False):
     """
     Realiza un análisis paralelo de Horn para determinar el número de componentes principales
@@ -77,8 +79,10 @@ def create_subspace(word_contour, n_comp, subspace_type="Terms"):
     :return: Matriz de componentes principales normalizados en la dimensión original de los vectores.
     :rtype: numpy.ndarray
 
-    Esta función aplica PCA para reducir la dimensionalidad de los vectores semánticos. En el caso
-    de 'Terms', PCA se aplica a las filas de la matriz de contornos (términos), y en otros casos,
+    Esta función aplica PCA para reducir la dimensionalidad de los vectores semánticos. El contorno
+    puede generarse con cualquiera de las funciones disponibles en :mod:`QSub.contours`,
+    incluyendo espacios como LSA (Gallito), BERT, GPT2, Word2Vec, GloVe, ELMo o DistilBERT.
+    En el caso de ``"Terms"``, PCA se aplica a las filas de la matriz (términos) y, en otros casos,
     se aplica a las columnas (características). Los componentes resultantes se normalizan usando la
     norma tipo 2 para mantener la coherencia en la magnitud de los vectores.
     
@@ -104,6 +108,63 @@ def create_subspace(word_contour, n_comp, subspace_type="Terms"):
     normalized_components = components / norm(components, axis=1, keepdims=True)
 
     return normalized_components
+
+
+def create_subspace_from_word(
+    word,
+    space="gallito",
+    n_comp=2,
+    subspace_type="Terms",
+    neighbors=100,
+    **kwargs,
+):
+    """Create a PCA subspace directly from a target word.
+
+    This helper fetches the word contour from any available semantic
+    space in :mod:`QSub.contours` and then applies :func:`create_subspace`.
+
+    Parameters
+    ----------
+    word : str
+        Target term for which the contour will be obtained.
+    space : str, optional
+        Name of the semantic space. Supported values are ``"gallito"``,
+        ``"bert"``, ``"gpt2"``, ``"word2vec"``, ``"glove"``, ``"elmo"`` and
+        ``"distilbert"``. Default ``"gallito"``.
+    n_comp : int, optional
+        Number of principal components to keep. Default ``2``.
+    subspace_type : str, optional
+        Passed to :func:`create_subspace`. ``"Terms"`` applies PCA on rows,
+        any other value on columns.
+    neighbors : int, optional
+        Number of neighbors to request from the contour function.
+    **kwargs : dict, optional
+        Additional parameters forwarded to the underlying contour function
+        (e.g. ``language`` or ``model_name``).
+
+    Returns
+    -------
+    numpy.ndarray
+        Matrix with the normalized principal components.
+    """
+
+    contour_funcs = {
+        "gallito": contours.get_neighbors_matrix_gallito,
+        "bert": contours.get_neighbors_matrix_bert,
+        "gpt2": contours.get_neighbors_matrix_gpt2,
+        "word2vec": contours.get_neighbors_matrix_word2vec,
+        "glove": contours.get_neighbors_matrix_glove,
+        "elmo": contours.get_neighbors_matrix_elmo,
+        "distilbert": contours.get_neighbors_matrix_distilbert,
+    }
+
+    try:
+        contour_func = contour_funcs[space.lower()]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported semantic space: {space}") from exc
+
+    contour = contour_func(word, neighbors=neighbors, **kwargs)
+    return create_subspace(contour, n_comp, subspace_type=subspace_type)
 
 def describe_subspace(subespacio_matrix, contour, top_n=10, graph = False):
     """

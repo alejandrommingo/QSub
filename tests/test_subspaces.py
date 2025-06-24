@@ -8,7 +8,11 @@ import QSub.contours as contours
 # Ensure wordcloud dependency is available
 sys.modules.setdefault("wordcloud", types.SimpleNamespace(WordCloud=object))
 
-from QSub.subspaces import parallel_analysis_horn, create_subspace
+from QSub.subspaces import (
+    parallel_analysis_horn,
+    create_subspace,
+    create_subspace_from_word,
+)
 
 def test_parallel_analysis_horn():
     # Parámetros de prueba
@@ -37,6 +41,11 @@ def test_create_subspace():
     resultado = create_subspace(contour, 2)
 
     # Comprobamos los tests
+    assert isinstance(resultado, np.ndarray)
+
+
+def test_create_subspace_from_word():
+    resultado = create_subspace_from_word("hello", space="bert", n_comp=2)
     assert isinstance(resultado, np.ndarray)
 
 
