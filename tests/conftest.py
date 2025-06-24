@@ -66,6 +66,9 @@ def stub_gallito(monkeypatch):
     def dummy_distilbert_corpus(language="en", model_name="distilbert-base-uncased", n_words=1000, output_layer="last"):
         return {f"{language}_{i}": np.random.rand(768) for i in range(n_words)}
 
+    def dummy_contextual_contour_wikipedia(word, language="en", model_name="bert-base-uncased", n_sentences=5, output_layer="last"):
+        return {f"{word}_{i}": np.random.rand(768) for i in range(n_sentences)}
+
     def dummy_bert_corpus(
         language="en",
         model_name="bert-base-uncased",
@@ -92,6 +95,21 @@ def stub_gallito(monkeypatch):
     monkeypatch.setattr(spaces, "get_elmo_corpus", dummy_elmo_corpus)
     monkeypatch.setattr(spaces, "get_word_vector_distilbert", dummy_word_vector_distilbert)
     monkeypatch.setattr(spaces, "get_distilbert_corpus", dummy_distilbert_corpus)
+
+    # Patch imported names in contours module
+    monkeypatch.setattr(contours, "get_word_vector_bert", dummy_word_vector_bert)
+    monkeypatch.setattr(contours, "get_bert_corpus", dummy_bert_corpus)
+    monkeypatch.setattr(contours, "get_word_vector_gpt2", dummy_word_vector_gpt2)
+    monkeypatch.setattr(contours, "get_gpt2_corpus", dummy_gpt2_corpus)
+    monkeypatch.setattr(contours, "get_word_vector_word2vec", dummy_word_vector_word2vec)
+    monkeypatch.setattr(contours, "get_word2vec_corpus", dummy_word2vec_corpus)
+    monkeypatch.setattr(contours, "get_word_vector_glove", dummy_word_vector_glove)
+    monkeypatch.setattr(contours, "get_glove_corpus", dummy_glove_corpus)
+    monkeypatch.setattr(contours, "get_word_vector_elmo", dummy_word_vector_elmo)
+    monkeypatch.setattr(contours, "get_elmo_corpus", dummy_elmo_corpus)
+    monkeypatch.setattr(contours, "get_word_vector_distilbert", dummy_word_vector_distilbert)
+    monkeypatch.setattr(contours, "get_distilbert_corpus", dummy_distilbert_corpus)
+    monkeypatch.setattr(contours, "get_contextual_contour_wikipedia", dummy_contextual_contour_wikipedia)
 
     # Stub wordcloud module if not installed
     if "wordcloud" not in sys.modules:

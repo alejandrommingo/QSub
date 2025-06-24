@@ -9,7 +9,31 @@ import html
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from numpy.linalg import norm
-from QSub.semantic_spaces import get_word_vector_gallito, cosine_similarity
+try:
+    from transformers import AutoTokenizer, AutoModel
+except ImportError:  # pragma: no cover - optional dependency
+    AutoTokenizer = None
+    AutoModel = None
+try:  # pragma: no cover - optional dependency
+    import torch
+except ImportError:  # pragma: no cover - optional dependency
+    torch = None
+from QSub.semantic_spaces import (
+    get_word_vector_gallito,
+    get_word_vector_bert,
+    get_bert_corpus,
+    get_word_vector_gpt2,
+    get_gpt2_corpus,
+    get_word_vector_word2vec,
+    get_word2vec_corpus,
+    get_word_vector_glove,
+    get_glove_corpus,
+    get_word_vector_elmo,
+    get_elmo_corpus,
+    get_word_vector_distilbert,
+    get_distilbert_corpus,
+    cosine_similarity,
+)
 
 # In this module you can find all functions related to the creation of contextual and conceptual contours
 
@@ -128,6 +152,167 @@ def get_superterm_gallito(terms_file, gallito_code, space_name):
     cosine_similarities = np.array([cosine_similarity(superterm_vector, v) for v in individual_vectors])
 
     return superterm_vector, cosine_similarities
+
+######################################
+## GENERIC NEIGHBOR RETRIEVAL FUNCS ##
+######################################
+
+def find_closest_neighbors(word, corpus, n_neighbors=10):
+    """Return ``n_neighbors`` closest terms to ``word`` in ``corpus``.
+
+    Parameters
+    ----------
+    word : str
+        Target term. It must be a key in ``corpus``.
+    corpus : dict
+        Mapping of terms to their semantic vectors.
+    n_neighbors : int, optional
+        Number of neighbors to return (default ``10``).
+
+    Returns
+    -------
+    dict
+        Dictionary mapping neighbor terms to their vectors.
+    """
+
+    if word not in corpus:
+        raise ValueError(f"La palabra '{word}' no se encuentra en el corpus.")
+
+    word_vector = corpus[word]
+
+    corpus_terms, corpus_vectors = zip(
+        *[(t, v) for t, v in corpus.items() if t != word]
+    )
+    corpus_matrix = np.stack(corpus_vectors)
+
+    dot_product = np.dot(corpus_matrix, word_vector)
+    norm_product = np.linalg.norm(word_vector) * np.linalg.norm(corpus_matrix, axis=1)
+    similarities = dot_product / norm_product
+
+    sorted_indices = np.argsort(-similarities)[:n_neighbors]
+    return {corpus_terms[i]: corpus[corpus_terms[i]] for i in sorted_indices}
+
+
+############################################
+## CONTOUR GENERATION FOR OTHER SPACES   ##
+############################################
+
+def get_neighbors_matrix_bert(
+    word,
+    language="en",
+    model_name="bert-base-uncased",
+    neighbors=100,
+    n_words=1000,
+    output_layer="last",
+):
+    """Return a contour for ``word`` using BERT based spaces."""
+
+    corpus = get_bert_corpus(
+        language=language,
+        model_name=model_name,
+        n_words=max(n_words, neighbors + 1),
+        output_layer=output_layer,
+    )
+    corpus[word] = get_word_vector_bert(word, model_name=model_name, output_layer=output_layer)
+    return find_closest_neighbors(word, corpus, n_neighbors=neighbors)
+
+
+def get_neighbors_matrix_gpt2(
+    word,
+    language="en",
+    model_name="gpt2",
+    neighbors=100,
+    n_words=1000,
+    output_layer="last",
+):
+    """Return a contour for ``word`` using GPT2 embeddings."""
+
+    corpus = get_gpt2_corpus(
+        language=language,
+        model_name=model_name,
+        n_words=max(n_words, neighbors + 1),
+        output_layer=output_layer,
+    )
+    corpus[word] = get_word_vector_gpt2(word, model_name=model_name, output_layer=output_layer)
+    return find_closest_neighbors(word, corpus, n_neighbors=neighbors)
+
+
+def get_neighbors_matrix_word2vec(
+    word,
+    language="en",
+    model_name="word2vec-google-news-300",
+    neighbors=100,
+    n_words=1000,
+):
+    """Return a contour for ``word`` using Word2Vec embeddings."""
+
+    corpus = get_word2vec_corpus(
+        language=language,
+        model_name=model_name,
+        n_words=max(n_words, neighbors + 1),
+    )
+    corpus[word] = get_word_vector_word2vec(word, model_name=model_name)
+    return find_closest_neighbors(word, corpus, n_neighbors=neighbors)
+
+
+def get_neighbors_matrix_glove(
+    word,
+    language="en",
+    model_name="glove-wiki-gigaword-300",
+    neighbors=100,
+    n_words=1000,
+):
+    """Return a contour for ``word`` using GloVe embeddings."""
+
+    corpus = get_glove_corpus(
+        language=language,
+        model_name=model_name,
+        n_words=max(n_words, neighbors + 1),
+    )
+    corpus[word] = get_word_vector_glove(word, model_name=model_name)
+    return find_closest_neighbors(word, corpus, n_neighbors=neighbors)
+
+
+def get_neighbors_matrix_elmo(
+    word,
+    language="en",
+    model_name="small",
+    neighbors=100,
+    n_words=1000,
+    output_layer="average",
+):
+    """Return a contour for ``word`` using ELMo embeddings."""
+
+    corpus = get_elmo_corpus(
+        language=language,
+        model_name=model_name,
+        n_words=max(n_words, neighbors + 1),
+        output_layer=output_layer,
+    )
+    corpus[word] = get_word_vector_elmo(word, model_name=model_name, output_layer=output_layer)
+    return find_closest_neighbors(word, corpus, n_neighbors=neighbors)
+
+
+def get_neighbors_matrix_distilbert(
+    word,
+    language="en",
+    model_name="distilbert-base-uncased",
+    neighbors=100,
+    n_words=1000,
+    output_layer="last",
+):
+    """Return a contour for ``word`` using DistilBERT embeddings."""
+
+    corpus = get_distilbert_corpus(
+        language=language,
+        model_name=model_name,
+        n_words=max(n_words, neighbors + 1),
+        output_layer=output_layer,
+    )
+    corpus[word] = get_word_vector_distilbert(word, model_name=model_name, output_layer=output_layer)
+    return find_closest_neighbors(word, corpus, n_neighbors=neighbors)
+
+
 
 ###################################
 ## CONTOURS EVALUATION FUNCTIONS ##
@@ -268,3 +453,118 @@ def deserved_neighbors(word, df_h_values, sorted_cos, word_cosines, graph=False)
         plt.show()
 
     return sum_value
+
+
+#################################
+## CONTEXTUAL CONTOUR FUNCTION ##
+#################################
+
+_contextual_models = {}
+
+
+def get_contextual_contour_wikipedia(
+    word,
+    language="en",
+    model_name="bert-base-uncased",
+    n_sentences=5,
+    output_layer="last",
+):
+    """Return contextual representations of ``word`` using Wikipedia sentences.
+
+    Parameters
+    ----------
+    word : str
+        Target term to search on Wikipedia.
+    language : str, optional
+        Language of Wikipedia edition (default ``"en"``).
+    model_name : str, optional
+        HuggingFace model name used to obtain embeddings.
+    n_sentences : int, optional
+        Maximum number of contexts to return.
+    output_layer : str | int, optional
+        ``"last"`` (default) for the final layer, ``"all"`` for all layers or an
+        integer selecting a specific hidden layer.
+
+    Returns
+    -------
+    dict
+        Mapping from each context sentence to the contextual vector of ``word``.
+    """
+
+    if AutoTokenizer is None or AutoModel is None or torch is None:
+        raise ImportError(
+            "transformers and torch must be installed to use get_contextual_contour_wikipedia"
+        )
+
+    if model_name not in _contextual_models:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModel.from_pretrained(model_name, output_hidden_states=True)
+        model.eval()
+        _contextual_models[model_name] = (tokenizer, model)
+
+    tokenizer, model = _contextual_models[model_name]
+
+    # Query Wikipedia API
+    url = f"https://{language}.wikipedia.org/w/api.php"
+    params = {
+        "action": "query",
+        "prop": "extracts",
+        "explaintext": True,
+        "titles": word,
+        "format": "json",
+    }
+    response = requests.get(url, params=params, timeout=10)
+    data = response.json()
+    pages = data.get("query", {}).get("pages", {})
+    if not pages:
+        return {}
+    text = next(iter(pages.values())).get("extract", "")
+
+    # Split into candidate sentences containing the target word
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    pattern = re.compile(re.escape(word), re.IGNORECASE)
+    contexts = [s for s in sentences if pattern.search(s)]
+    contexts = contexts[:n_sentences]
+
+    results = {}
+    for idx, sentence in enumerate(contexts):
+        inputs = tokenizer(sentence, return_tensors="pt")
+        tokens = tokenizer.tokenize(sentence)
+        target_tokens = tokenizer.tokenize(word)
+
+        # Search the span of target tokens
+        start = None
+        for i in range(len(tokens) - len(target_tokens) + 1):
+            if tokens[i : i + len(target_tokens)] == target_tokens:
+                start = i
+                break
+        if start is None:
+            continue
+        idxs = list(range(start + 1, start + 1 + len(target_tokens)))
+
+        with torch.no_grad():
+            outputs = model(**inputs)
+
+        if output_layer == "last":
+            vec = outputs.last_hidden_state[0, idxs, :].mean(dim=0)
+            results[sentence] = vec.numpy()
+            continue
+
+        if output_layer == "all":
+            all_layers = [
+                h[0, idxs, :].mean(dim=0).numpy() for h in outputs.hidden_states[1:]
+            ]
+            results[sentence] = np.stack(all_layers)
+            continue
+
+        if isinstance(output_layer, int):
+            hidden = outputs.hidden_states[1:]
+            if output_layer < 0 or output_layer >= len(hidden):
+                raise ValueError("output_layer out of range")
+            vec = hidden[output_layer][0, idxs, :].mean(dim=0)
+            results[sentence] = vec.numpy()
+            continue
+
+        raise ValueError("output_layer must be 'last', 'all', or an integer index")
+
+    return results
