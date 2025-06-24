@@ -103,3 +103,46 @@ def test_find_closest_neighbors_lsa():
     assert isinstance(list(resultado.keys())[0], str)
     assert isinstance(list(resultado.values())[0], np.ndarray)
 
+
+def test_get_neighbors_matrix_bert():
+    result = contours.get_neighbors_matrix_bert("hello")
+    assert isinstance(result, dict)
+    assert isinstance(list(result.values())[0], np.ndarray)
+
+
+def test_get_neighbors_matrix_gpt2():
+    result = contours.get_neighbors_matrix_gpt2("hello")
+    assert isinstance(result, dict)
+    assert isinstance(list(result.values())[0], np.ndarray)
+
+
+def test_get_neighbors_matrix_word2vec():
+    result = contours.get_neighbors_matrix_word2vec("hello")
+    assert isinstance(result, dict)
+    assert isinstance(list(result.values())[0], np.ndarray)
+
+
+def test_get_neighbors_matrix_glove():
+    result = contours.get_neighbors_matrix_glove("hello")
+    assert isinstance(result, dict)
+    assert isinstance(list(result.values())[0], np.ndarray)
+
+
+def test_get_neighbors_matrix_elmo():
+    result = contours.get_neighbors_matrix_elmo("hello")
+    assert isinstance(result, dict)
+    assert isinstance(list(result.values())[0], np.ndarray)
+
+
+def test_get_neighbors_matrix_distilbert():
+    result = contours.get_neighbors_matrix_distilbert("hello")
+    assert isinstance(result, dict)
+    assert isinstance(list(result.values())[0], np.ndarray)
+
+
+def test_get_contextual_contour_wikipedia():
+    result = contours.get_contextual_contour_wikipedia("hello")
+    assert isinstance(result, dict)
+    if result:
+        assert isinstance(list(result.values())[0], np.ndarray)
+
