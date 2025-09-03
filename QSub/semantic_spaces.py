@@ -114,6 +114,28 @@ _w2v_models = {}
 _glove_models = {}
 _elmo_models = {}
 
+def _detect_model_type(model_name: str) -> str:
+    """
+    Detecta automáticamente el tipo de modelo basado en el nombre.
+    
+    :param model_name: Nombre del modelo (ej: "bert-base-uncased", "gpt2", "distilbert-base-uncased")
+    :return: Tipo de modelo ("bert", "gpt2", "distilbert", etc.)
+    """
+    model_name_lower = model_name.lower()
+    
+    # Detección por patrones comunes
+    if any(pattern in model_name_lower for pattern in ["bert-", "roberta-", "albert-"]):
+        return "bert"
+    elif model_name_lower.startswith("distilbert"):
+        return "bert"  # DistilBERT usa la misma arquitectura que BERT
+    elif any(pattern in model_name_lower for pattern in ["gpt2", "gpt-2"]):
+        return "gpt2"
+    elif model_name_lower.startswith("gpt"):
+        return "gpt2"  # GPT variants
+    else:
+        # Por defecto, asumimos BERT para modelos no reconocidos
+        return "bert"
+
 def _load_bert(model_name):
     """Load tokenizer and model for ``model_name`` with hidden states."""
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -121,55 +143,455 @@ def _load_bert(model_name):
     model.eval()
     return tokenizer, model
 
+def _find_char_spans(text: str, term: str, case_sensitive: bool = False):
+    """Devuelve lista de spans (start_char, end_char) de 'term' en 'text'."""
+    haystack = text if case_sensitive else text.lower()
+    needle   = term if case_sensitive else term.lower()
 
-def get_word_vector_bert(word, model_name="bert-base-uncased", output_layer="last"):
-    """Return BERT embeddings for a given word.
+    spans = []
+    start = 0
+    while True:
+        i = haystack.find(needle, start)
+        if i == -1:
+            break
+        spans.append((i, i + len(needle)))
+        start = i + len(needle)
+    return spans
 
-    Parameters
-    ----------
-    word : str
-        Target word.
-    model_name : str, optional
-        HuggingFace model name.
-    output_layer : str | int, optional
-        ``"last"`` (default) returns the final layer. An integer selects the
-        corresponding intermediate layer (0-indexed). ``"all"`` returns an array
-        with one vector per layer.
+
+def get_static_word_vector(
+    word: str,
+    model_name: str = "bert-base-uncased",
+    model_type: str = "auto",
+    aggregation: str = "mean",  # "mean" | "first" | "sum" | "max"
+):
     """
-    if AutoTokenizer is None or AutoModel is None or torch is None:
-        raise ImportError(
-            "transformers and torch must be installed to use get_word_vector_bert"
-        )
+    Representación estática de `word` usando cualquier modelo transformer compatible.
+    
+    :param word: La palabra para la cual obtener el vector.
+    :type word: str
+    :param model_name: Nombre del modelo (ej: "bert-base-uncased", "gpt2", "distilbert-base-uncased").
+    :type model_name: str
+    :param model_type: Tipo de arquitectura ("auto", "bert", "gpt2"). Si es "auto", se detecta automáticamente.
+    :type model_type: str
+    :param aggregation: Método de agregación para subpalabras ("mean", "first", "sum", "max").
+    :type aggregation: str
+    :return: Vector numpy que representa la palabra.
+    :rtype: numpy.ndarray
+    """
+    # Detectar tipo automáticamente si es necesario
+    if model_type == "auto":
+        model_type = _detect_model_type(model_name)
+    
+    # Delegar a la implementación específica según el tipo
+    if model_type == "bert":
+        return _get_static_word_vector_bert(word, model_name, aggregation)
+    elif model_type == "gpt2":
+        return _get_static_word_vector_gpt2(word, model_name, aggregation)
+    else:
+        raise ValueError(f"Tipo de modelo no soportado: {model_type}. Use 'bert' o 'gpt2'.")
 
+
+def _get_static_word_vector_bert(
+    word: str,
+    model_name: str = "bert-base-uncased",
+    aggregation: str = "mean",
+):
+    """Implementación interna para vectores estáticos BERT."""
     if model_name not in _bert_models:
         _bert_models[model_name] = _load_bert(model_name)
     tokenizer, model = _bert_models[model_name]
-    inputs = tokenizer(word, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs)
-    if output_layer == "last":
-        vector = outputs.last_hidden_state.mean(dim=1).squeeze()
-        return vector.numpy()
 
+    # 1) Tokeniza sin especiales para obtener SOLO subpiezas reales de la palabra
+    token_ids = tokenizer.encode(word, add_special_tokens=False)
+
+    if len(token_ids) == 0:
+        raise ValueError(f"No se pudo tokenizar la palabra: {word!r}")
+
+    # 2) Extrae la matriz de embeddings (vocab_size x hidden)
+    emb_matrix = model.get_input_embeddings().weight  # no requiere grad
+
+    # 3) Recolecta los embeddings de cada subpieza
+    sub_embs = emb_matrix[token_ids, :]  # (n_subtokens, hidden)
+
+    # 4) Agrega subpiezas → vector único
+    if aggregation == "mean":
+        vec = sub_embs.mean(dim=0)
+    elif aggregation == "first":
+        vec = sub_embs[0]
+    elif aggregation == "sum":
+        vec = sub_embs.sum(dim=0)
+    elif aggregation == "max":
+        vec, _ = sub_embs.max(dim=0)
+    else:
+        raise ValueError("aggregation debe ser 'mean' | 'first' | 'sum' | 'max'")
+
+    return vec.detach().cpu().numpy()
+
+
+def _get_static_word_vector_gpt2(
+    word: str,
+    model_name: str = "gpt2",
+    aggregation: str = "mean",
+):
+    """Implementación interna para vectores estáticos GPT2."""
+    if model_name not in _gpt2_models:
+        _gpt2_models[model_name] = _load_gpt2(model_name)
+    tokenizer, model = _gpt2_models[model_name]
+
+    # 1) Tokeniza sin especiales para obtener SOLO subpiezas reales de la palabra
+    token_ids = tokenizer.encode(word, add_special_tokens=False)
+
+    if len(token_ids) == 0:
+        raise ValueError(f"No se pudo tokenizar la palabra: {word!r}")
+
+    # 2) Extrae la matriz de embeddings (vocab_size x hidden)
+    emb_matrix = model.get_input_embeddings().weight  # no requiere grad
+
+    # 3) Recolecta los embeddings de cada subpieza
+    sub_embs = emb_matrix[token_ids, :]  # (n_subtokens, hidden)
+
+    # 4) Agrega subpiezas → vector único
+    if aggregation == "mean":
+        vec = sub_embs.mean(dim=0)
+    elif aggregation == "first":
+        vec = sub_embs[0]
+    elif aggregation == "sum":
+        vec = sub_embs.sum(dim=0)
+    elif aggregation == "max":
+        vec, _ = sub_embs.max(dim=0)
+    else:
+        raise ValueError("aggregation debe ser 'mean' | 'first' | 'sum' | 'max'")
+
+    return vec.detach().cpu().numpy()
+
+
+def get_contextual_word_vector(
+    term: str,
+    text: str,
+    model_name: str = "bert-base-uncased",
+    model_type: str = "auto",
+    output_layer="last",          # "last" | "all" | int (0..L-1)
+    occurrence_index: int = 0,    # qué ocurrencia usar si hay varias
+    aggregation: str = "mean",    # "mean" | "first" | "sum" | "max"
+    case_sensitive: bool = False,
+    complex_vector: bool = False, # Si True, devuelve vector complejo con embedding posicional
+):
+    """
+    Representación contextual de una ocurrencia de `term` dentro de `text` usando cualquier modelo transformer.
+
+    :param term: El término objetivo dentro del texto.
+    :type term: str
+    :param text: El texto completo que contiene el término.
+    :type text: str
+    :param model_name: Nombre del modelo a usar (ej: "bert-base-uncased", "gpt2").
+    :type model_name: str
+    :param model_type: Tipo de arquitectura ("auto", "bert", "gpt2"). Si es "auto", se detecta automáticamente.
+    :type model_type: str
+    :param output_layer: Capa del modelo a extraer. "last", "all", o índice entero.
+    :type output_layer: str | int
+    :param occurrence_index: Índice de la ocurrencia si hay múltiples apariciones.
+    :type occurrence_index: int
+    :param aggregation: Método de agregación para subpalabras.
+    :type aggregation: str
+    :param case_sensitive: Si la búsqueda del término es sensible a mayúsculas.
+    :type case_sensitive: bool
+    :param complex_vector: Si True, devuelve vector complejo con embeddings posicionales.
+    :type complex_vector: bool
+    :return: Vector numpy real o complejo según complex_vector.
+    :rtype: numpy.ndarray
+    """
+    # Detectar tipo automáticamente si es necesario
+    if model_type == "auto":
+        model_type = _detect_model_type(model_name)
+    
+    # Delegar a la implementación específica según el tipo
+    if model_type == "bert":
+        return _get_contextual_word_vector_bert(
+            term, text, model_name, output_layer, occurrence_index, 
+            aggregation, case_sensitive, complex_vector
+        )
+    elif model_type == "gpt2":
+        return _get_contextual_word_vector_gpt2(
+            term, text, model_name, output_layer, occurrence_index,
+            aggregation, case_sensitive, complex_vector
+        )
+    else:
+        raise ValueError(f"Tipo de modelo no soportado: {model_type}. Use 'bert' o 'gpt2'.")
+
+
+def _get_contextual_word_vector_bert(
+    term: str,
+    text: str,
+    model_name: str = "bert-base-uncased",
+    output_layer="last",
+    occurrence_index: int = 0,
+    aggregation: str = "mean",
+    case_sensitive: bool = False,
+    complex_vector: bool = False,
+):
+    """Implementación interna para vectores contextuales BERT."""
+    if model_name not in _bert_models:
+        _bert_models[model_name] = _load_bert(model_name)
+    tokenizer, model = _bert_models[model_name]
+
+    # 1) Encuentra spans por caracteres del término en el texto
+    spans = _find_char_spans(text, term, case_sensitive=case_sensitive)
+    if not spans:
+        raise ValueError(f"No se encontró el término {term!r} en el texto.")
+    if occurrence_index < 0 or occurrence_index >= len(spans):
+        raise ValueError(f"occurrence_index fuera de rango (0..{len(spans)-1}).")
+
+    target_span = spans[occurrence_index]  # (start_char, end_char)
+
+    # 2) Tokeniza el párrafo con offsets para alinear char↔token
+    enc = tokenizer(
+        text,
+        return_tensors="pt",
+        return_offsets_mapping=True,
+        add_special_tokens=True,
+        truncation=True,           # para textos largos; ajusta si quieres manejar sliding window
+        max_length=512
+    )
+    offsets    = enc["offset_mapping"][0]   # (seq_len, 2)
+
+    # 3) Filtra índices de tokens que cubren la ocurrencia (ignora especiales: offsets=(0,0))
+    token_indices = []
+    t_start, t_end = target_span
+    for i, (s, e) in enumerate(offsets.tolist()):
+        if s == e == 0:
+            # típico de [CLS]/[SEP] en tokenizers rápidos
+            continue
+        # criterio de solape: cualquier intersección entre [s,e) y [t_start,t_end)
+        if not (e <= t_start or s >= t_end):
+            token_indices.append(i)
+
+    if not token_indices:
+        raise RuntimeError("No se pudo mapear el término a tokens (revisa tokenización/offsets).")
+
+    # 4) Pasa el texto por el modelo
+    with torch.no_grad():
+        outputs = model(**{k: v for k, v in enc.items() if k != "offset_mapping"})
+
+    # 5) Función auxiliar para agregar subtokens
+    def _aggregate_subtokens(mat_tokens):  # (n_subtokens, hidden) -> (hidden,)
+        if aggregation == "mean":
+            return mat_tokens.mean(dim=0)
+        elif aggregation == "first":
+            return mat_tokens[0]
+        elif aggregation == "sum":
+            return mat_tokens.sum(dim=0)
+        elif aggregation == "max":
+            return mat_tokens.max(dim=0).values
+        else:
+            raise ValueError("aggregation debe ser 'mean' | 'first' | 'sum' | 'max'")
+
+    # 6) Extraer embeddings posicionales si se necesitan vectores complejos
+    def _get_positional_embeddings():
+        """Extrae embeddings posicionales para los tokens del término."""
+        if hasattr(model, 'embeddings') and hasattr(model.embeddings, 'position_embeddings'):
+            # BERT tiene embeddings posicionales específicos
+            pos_emb_matrix = model.embeddings.position_embeddings.weight
+            # Tomar las posiciones correspondientes a nuestros tokens
+            positions = torch.tensor(token_indices, dtype=torch.long)
+            pos_embeddings = pos_emb_matrix[positions]  # (n_subtokens, hidden)
+            return _aggregate_subtokens(pos_embeddings).detach().cpu().numpy()
+        else:
+            # Fallback: usar información de posición normalizada
+            max_pos = len(offsets)
+            avg_position = sum(token_indices) / len(token_indices) / max_pos
+            hidden_size = outputs.last_hidden_state.shape[-1]
+            # Crear patrón senoidal basado en la posición promedio
+            pos_pattern = np.sin(np.linspace(0, 2*np.pi*avg_position, hidden_size))
+            return pos_pattern
+
+    # 7) Selecciona capa(s) y calcula resultado
+    if output_layer == "last":
+        # last_hidden_state: (1, seq_len, hidden)
+        seq = outputs.last_hidden_state[0]                  # (seq_len, hidden)
+        sub = seq[torch.tensor(token_indices, dtype=torch.long)]
+        vec = _aggregate_subtokens(sub).cpu().numpy()
+        
+        if complex_vector:
+            pos_vec = _get_positional_embeddings()
+            return vec + 1j * pos_vec
+        return vec
+
+    # hidden_states: tuple con embeddings y L capas
+    hs = outputs.hidden_states
     if output_layer == "all":
-        hidden = [h.mean(dim=1).squeeze().numpy() for h in outputs.hidden_states[1:]]
-        return np.stack(hidden)
+        per_layer = []
+        for h in hs[1:]:                                    # hs[0] = embeddings; 1..L = capas transformer
+            seq = h[0]                                      # (seq_len, hidden)
+            sub = seq[torch.tensor(token_indices, dtype=torch.long)]
+            layer_vec = _aggregate_subtokens(sub).cpu().numpy()
+            per_layer.append(layer_vec)
+        
+        result = np.stack(per_layer)                        # (L, hidden)
+        if complex_vector:
+            pos_vec = _get_positional_embeddings()
+            # Repetir el vector posicional para todas las capas
+            pos_matrix = np.broadcast_to(pos_vec, result.shape)
+            return result + 1j * pos_matrix
+        return result
 
     if isinstance(output_layer, int):
-        hidden_states = outputs.hidden_states[1:]
-        if output_layer < 0 or output_layer >= len(hidden_states):
-            raise ValueError("output_layer out of range")
-        vector = hidden_states[output_layer].mean(dim=1).squeeze()
-        return vector.numpy()
+        num_layers = len(hs) - 1
+        if output_layer < 0 or output_layer >= num_layers:
+            raise ValueError(f"output_layer fuera de rango (0..{num_layers-1})")
+        seq = hs[1 + output_layer][0]                       # (seq_len, hidden)
+        sub = seq[torch.tensor(token_indices, dtype=torch.long)]
+        vec = _aggregate_subtokens(sub).cpu().numpy()
+        
+        if complex_vector:
+            pos_vec = _get_positional_embeddings()
+            return vec + 1j * pos_vec
+        return vec
 
-    raise ValueError("output_layer must be 'last', 'all', or an integer index")
+    raise ValueError("output_layer debe ser 'last', 'all' o un entero 0..L-1")
+
+
+def _get_contextual_word_vector_gpt2(
+    term: str,
+    text: str,
+    model_name: str = "gpt2",
+    output_layer="last",
+    occurrence_index: int = 0,
+    aggregation: str = "mean",
+    case_sensitive: bool = False,
+    complex_vector: bool = False,
+):
+    """Implementación interna para vectores contextuales GPT2."""
+    if model_name not in _gpt2_models:
+        _gpt2_models[model_name] = _load_gpt2(model_name)
+    tokenizer, model = _gpt2_models[model_name]
+
+    # 1) Encuentra spans por caracteres del término en el texto
+    spans = _find_char_spans(text, term, case_sensitive=case_sensitive)
+    if not spans:
+        raise ValueError(f"No se encontró el término {term!r} en el texto.")
+    if occurrence_index < 0 or occurrence_index >= len(spans):
+        raise ValueError(f"occurrence_index fuera de rango (0..{len(spans)-1}).")
+
+    target_span = spans[occurrence_index]  # (start_char, end_char)
+
+    # 2) Tokeniza el texto con offsets para alinear char↔token
+    enc = tokenizer(
+        text,
+        return_tensors="pt",
+        return_offsets_mapping=True,
+        add_special_tokens=True,
+        truncation=True,
+        max_length=1024  # GPT2 tiene contexto más largo que BERT
+    )
+    offsets    = enc["offset_mapping"][0]   # (seq_len, 2)
+
+    # 3) Filtra índices de tokens que cubren la ocurrencia
+    token_indices = []
+    t_start, t_end = target_span
+    for i, (s, e) in enumerate(offsets.tolist()):
+        if s == e == 0:
+            # tokens especiales
+            continue
+        # criterio de solape: cualquier intersección entre [s,e) y [t_start,t_end)
+        if not (e <= t_start or s >= t_end):
+            token_indices.append(i)
+
+    if not token_indices:
+        raise RuntimeError("No se pudo mapear el término a tokens (revisa tokenización/offsets).")
+
+    # 4) Pasa el texto por el modelo
+    with torch.no_grad():
+        outputs = model(**{k: v for k, v in enc.items() if k != "offset_mapping"})
+
+    # 5) Función auxiliar para agregar subtokens
+    def _aggregate_subtokens(mat_tokens):  # (n_subtokens, hidden) -> (hidden,)
+        if aggregation == "mean":
+            return mat_tokens.mean(dim=0)
+        elif aggregation == "first":
+            return mat_tokens[0]
+        elif aggregation == "sum":
+            return mat_tokens.sum(dim=0)
+        elif aggregation == "max":
+            return mat_tokens.max(dim=0).values
+        else:
+            raise ValueError("aggregation debe ser 'mean' | 'first' | 'sum' | 'max'")
+
+    # 6) Extraer embeddings posicionales si se necesitan vectores complejos
+    def _get_positional_embeddings():
+        """Extrae embeddings posicionales para los tokens del término."""
+        if hasattr(model, 'wpe'):  # GPT2 usa 'wpe' para position embeddings
+            pos_emb_matrix = model.wpe.weight
+            # Tomar las posiciones correspondientes a nuestros tokens
+            positions = torch.tensor(token_indices, dtype=torch.long)
+            if positions.max() < pos_emb_matrix.size(0):
+                pos_embeddings = pos_emb_matrix[positions]  # (n_subtokens, hidden)
+                return _aggregate_subtokens(pos_embeddings).detach().cpu().numpy()
+        
+        # Fallback: usar información de posición normalizada
+        max_pos = len(offsets)
+        avg_position = sum(token_indices) / len(token_indices) / max_pos
+        hidden_size = outputs.last_hidden_state.shape[-1]
+        # Crear patrón senoidal basado en la posición promedio
+        pos_pattern = np.sin(np.linspace(0, 2*np.pi*avg_position, hidden_size))
+        return pos_pattern
+
+    # 7) Selecciona capa(s) y calcula resultado
+    if output_layer == "last":
+        # last_hidden_state: (1, seq_len, hidden)
+        seq = outputs.last_hidden_state[0]                  # (seq_len, hidden)
+        sub = seq[torch.tensor(token_indices, dtype=torch.long)]
+        vec = _aggregate_subtokens(sub).cpu().numpy()
+        
+        if complex_vector:
+            pos_vec = _get_positional_embeddings()
+            return vec + 1j * pos_vec
+        return vec
+
+    # hidden_states: tuple con embeddings y L capas
+    hs = outputs.hidden_states
+    if output_layer == "all":
+        per_layer = []
+        for h in hs[1:]:                                    # hs[0] = embeddings; 1..L = capas transformer
+            seq = h[0]                                      # (seq_len, hidden)
+            sub = seq[torch.tensor(token_indices, dtype=torch.long)]
+            layer_vec = _aggregate_subtokens(sub).cpu().numpy()
+            per_layer.append(layer_vec)
+        
+        result = np.stack(per_layer)                        # (L, hidden)
+        if complex_vector:
+            pos_vec = _get_positional_embeddings()
+            # Repetir el vector posicional para todas las capas
+            pos_matrix = np.broadcast_to(pos_vec, result.shape)
+            return result + 1j * pos_matrix
+        return result
+
+    if isinstance(output_layer, int):
+        num_layers = len(hs) - 1
+        if output_layer < 0 or output_layer >= num_layers:
+            raise ValueError(f"output_layer fuera de rango (0..{num_layers-1})")
+        seq = hs[1 + output_layer][0]                       # (seq_len, hidden)
+        sub = seq[torch.tensor(token_indices, dtype=torch.long)]
+        vec = _aggregate_subtokens(sub).cpu().numpy()
+        
+        if complex_vector:
+            pos_vec = _get_positional_embeddings()
+            return vec + 1j * pos_vec
+        return vec
+
+    raise ValueError("output_layer debe ser 'last', 'all' o un entero 0..L-1")
+
+
+# Nota: API unificada implementada. Las funciones principales son:
+# - get_static_word_vector(word, model_name, model_type="auto") para representaciones estáticas
+# - get_contextual_word_vector(term, text, model_name, model_type="auto") para representaciones contextuales
+# Soporta detección automática de tipos de modelo o especificación manual.
 
 
 def get_bert_corpus(
     language="en",
     model_name="bert-base-uncased",
     n_words=1000,
-    output_layer="last",
 ):
     """Return a dictionary with BERT vectors of the most frequent words.
 
@@ -182,7 +604,7 @@ def get_bert_corpus(
     words = top_n_list(language, n_words)
 
     def get_vector(term):
-        return term, get_word_vector_bert(term, model_name, output_layer)
+        return term, get_static_word_vector(term, model_name, model_type="bert")
 
     corpus_dict = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -204,47 +626,16 @@ def _load_gpt2(model_name):
     return tokenizer, model
 
 
-def get_word_vector_gpt2(word, model_name="gpt2", output_layer="last"):
-    """Return GPT2 embeddings for a given word.
-
-    Parameters are analogous to :func:`get_word_vector_bert`.
-    """
-
-    if AutoTokenizer is None or AutoModel is None or torch is None:
-        raise ImportError(
-            "transformers and torch must be installed to use get_word_vector_gpt2"
-        )
-
-    if model_name not in _gpt2_models:
-        _gpt2_models[model_name] = _load_gpt2(model_name)
-    tokenizer, model = _gpt2_models[model_name]
-    inputs = tokenizer(word, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs)
-
-    if output_layer == "last":
-        vector = outputs.last_hidden_state.mean(dim=1).squeeze()
-        return vector.numpy()
-
-    if output_layer == "all":
-        hidden = [h.mean(dim=1).squeeze().numpy() for h in outputs.hidden_states]
-        return np.stack(hidden)
-
-    if isinstance(output_layer, int):
-        hidden_states = outputs.hidden_states
-        if output_layer < 0 or output_layer >= len(hidden_states):
-            raise ValueError("output_layer out of range")
-        vector = hidden_states[output_layer].mean(dim=1).squeeze()
-        return vector.numpy()
-
-    raise ValueError("output_layer must be 'last', 'all', or an integer index")
+# Nota: API unificada implementada. Las funciones principales son:
+# - get_static_word_vector(word, model_name, model_type="auto") para representaciones estáticas
+# - get_contextual_word_vector(term, text, model_name, model_type="auto") para representaciones contextuales
+# Soporta detección automática de tipos de modelo o especificación manual.
 
 
 def get_gpt2_corpus(
     language="en",
     model_name="gpt2",
     n_words=1000,
-    output_layer="last",
 ):
     """Return a dictionary with GPT2 vectors of the most frequent words."""
 
@@ -253,7 +644,7 @@ def get_gpt2_corpus(
     words = top_n_list(language, n_words)
 
     def get_vector(term):
-        return term, get_word_vector_gpt2(term, model_name, output_layer)
+        return term, get_static_word_vector(term, model_name, model_type="gpt2")
 
     corpus_dict = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -426,19 +817,18 @@ def get_elmo_corpus(
 ## DISTILBERT BASED SEMANTIC SPACE OPS    ##
 #############################################
 
-def get_word_vector_distilbert(word, model_name="distilbert-base-uncased", output_layer="last"):
-    """Wrapper around :func:`get_word_vector_bert` for DistilBERT."""
-    return get_word_vector_bert(word, model_name=model_name, output_layer=output_layer)
+def get_word_vector_distilbert(word, model_name="distilbert-base-uncased"):
+    """Wrapper around get_static_word_vector for DistilBERT."""
+    return get_static_word_vector(word, model_name=model_name, model_type="bert")
 
 
 def get_distilbert_corpus(
     language="en",
     model_name="distilbert-base-uncased",
     n_words=1000,
-    output_layer="last",
 ):
-    """Wrapper around :func:`get_bert_corpus` for DistilBERT."""
-    return get_bert_corpus(language, model_name=model_name, n_words=n_words, output_layer=output_layer)
+    """Wrapper around get_bert_corpus for DistilBERT."""
+    return get_bert_corpus(language, model_name=model_name, n_words=n_words)
 
 #######################################
 ## GENERAL SEMANTIC SPACE OPERATIONS ##
