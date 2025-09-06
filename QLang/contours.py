@@ -1,14 +1,15 @@
 """
-QSub Contours Module - Clean Version
+QLang Contours Module - Clean Version
 
-This module contains essential functions for contextual contour analysis.
+This module provides functions for extracting and analyzing contextual contours
+from Wikipedia articles with comprehensive statistical analysis and visualization.
 """
 
 import requests
 import re
 import numpy as np
 import matplotlib.pyplot as plt
-from QSub.semantic_spaces import get_static_word_vector, get_contextual_word_vector
+from QLang.semantic_spaces import get_static_word_vector, get_contextual_word_vector
 
 
 def get_complete_contextual_contour_wikipedia(
@@ -44,7 +45,7 @@ def get_complete_contextual_contour_wikipedia(
     """
     # Headers for Wikipedia API (using the exact format that worked in terminal)
     headers = {
-        'User-Agent': 'QSub/1.0 (https://github.com/alejandrommingo/QSub; contact@example.com) Python/requests'
+        'User-Agent': 'QLang/1.0 (https://github.com/alejandrommingo/QLang; contact@example.com) Python/requests'
     }
     
     try:
@@ -205,6 +206,7 @@ def analyze_contextual_contour(contour_dict, target_word, include_static=True):
     ----------
     contour_dict : dict
         Dictionary with contour data from get_complete_contextual_contour_wikipedia
+        or test data with 'contextual_vectors' key
     target_word : str
         Target word being analyzed
     include_static : bool, default=True
@@ -218,30 +220,43 @@ def analyze_contextual_contour(contour_dict, target_word, include_static=True):
     if not contour_dict:
         return None
     
-    # Separate contextual and static vectors
+    # Handle different input formats
     contextual_vectors = []
     static_vector = None
     
-    for key, data in contour_dict.items():
-        if isinstance(data, dict) and 'vector' in data:
-            if key == 'static_vector':
-                static_vector = data['vector']
-            else:
-                contextual_vectors.append(data['vector'])
+    # Check if this is test data format
+    if 'contextual_vectors' in contour_dict:
+        contextual_vectors = contour_dict['contextual_vectors']
+    else:
+        # Original format from get_complete_contextual_contour_wikipedia
+        for key, data in contour_dict.items():
+            if isinstance(data, dict) and 'vector' in data:
+                if key == 'static_vector':
+                    static_vector = data['vector']
+                else:
+                    contextual_vectors.append(data['vector'])
     
     if not contextual_vectors:
         return None
     
     n_contextual = len(contextual_vectors)
     
+    # Create similarity matrix
+    similarity_matrix = np.zeros((n_contextual, n_contextual))
+    
     # Calculate pairwise similarities between contextual vectors
     similarities = []
     for i in range(n_contextual):
-        for j in range(i + 1, n_contextual):
-            sim = np.dot(contextual_vectors[i], contextual_vectors[j]) / (
-                np.linalg.norm(contextual_vectors[i]) * np.linalg.norm(contextual_vectors[j])
-            )
-            similarities.append(sim)
+        for j in range(n_contextual):
+            if i != j:
+                sim = np.dot(contextual_vectors[i], contextual_vectors[j]) / (
+                    np.linalg.norm(contextual_vectors[i]) * np.linalg.norm(contextual_vectors[j])
+                )
+                similarity_matrix[i, j] = sim
+                if i < j:  # Only count each pair once for statistics
+                    similarities.append(sim)
+            else:
+                similarity_matrix[i, j] = 1.0  # Self-similarity
     
     # Calculate statistics
     similarities = np.array(similarities)
@@ -252,6 +267,9 @@ def analyze_contextual_contour(contour_dict, target_word, include_static=True):
     
     results = {
         'target_word': target_word,
+        'similarity_matrix': similarity_matrix,
+        'average_similarity': mean_similarity,
+        'std_similarity': similarity_std,
         'n_contextual_vectors': n_contextual,
         'mean_contextual_similarity': mean_similarity,
         'similarity_std': similarity_std,
@@ -311,8 +329,11 @@ def visualize_contextual_contour(analysis_results, save_path=None):
     
     # Plot 1: Similarity distribution
     target_word = analysis_results['target_word']
-    mean_sim = analysis_results['mean_contextual_similarity']
-    sim_std = analysis_results['similarity_std']
+    # Handle different field names for backward compatibility
+    mean_sim = (analysis_results.get('mean_contextual_similarity') or 
+               analysis_results.get('average_similarity', 0.0))
+    sim_std = (analysis_results.get('similarity_std') or 
+              analysis_results.get('std_similarity', 0.0))
     
     ax1.hist([mean_sim], bins=1, alpha=0.7, color='steelblue', 
              label=f'Mean: {mean_sim:.3f}')

@@ -20,8 +20,8 @@ QLang provides tools for extracting contextual instances of words from Wikipedia
 To install QLang, run the following commands:
 
 ```bash
-git clone https://github.com/alejandrommingo/QSub.git
-cd QSub
+git clone https://github.com/alejandrommingo/QLang.git
+cd QLang
 pip install -r requirements.txt
 pip install .
 ```
@@ -68,7 +68,7 @@ Original conceptual demonstration:
 - Basic contour generation concepts using LSA
 - Foundational semantic analysis approaches
 
-![Contextual Contour Analysis Example](https://github.com/alejandrommingo/QSub/blob/main/img/QSub_conceptual_contour_example.png)
+![Contextual Contour Analysis Example](https://github.com/alejandrommingo/QLang/blob/main/img/QLang_conceptual_contour_example.png)
 
 ### Quick Start
 
@@ -131,4 +131,4 @@ This project is licensed under the [GNU General Public License](LICENSE).
 
 If you use this repository in your research, please cite it as follows:
 
-Martinez-Mingo, A. (2024). *QLang: Quantum Language Analysis*. GitHub repository. Available at: https://github.com/alejandrommingo/QSub
+Martinez-Mingo, A. (2024). *QLang: Quantum Language Analysis*. GitHub repository. Available at: https://github.com/alejandrommingo/QLang

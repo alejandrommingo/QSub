@@ -1,148 +1,85 @@
-import os
-from pathlib import Path
-
+import pytest
 import numpy as np
-import pandas as pd
+import os
+import tempfile
 
-import QSub.contours as contours
-import QSub.semantic_spaces as spaces
-
-def test_gallito_neighbors_matrix():
-    # Parámetros de prueba
-    test_word = "china"
-    test_code = os.getenv("GALLITO_API_KEY", "default_code")
-    test_space_name = "quantumlikespace_spanish"
-    test_neighbors = 10
-
-    resultado = contours.get_neighbors_matrix_gallito(
-        test_word, test_code, test_space_name, neighbors=test_neighbors
-    )
-
-    assert isinstance(resultado, dict)
-    assert isinstance(list(resultado.keys())[0], str)
-    assert isinstance(list(resultado.values())[0], np.ndarray)
-
-def test_neighbors_similarity():
-    # Parámetros de prueba
-    test_word = "china"
-    test_code = os.getenv("GALLITO_API_KEY", "default_code")
-    test_space_name = "quantumlikespace_spanish"
-    test_neighbors = 10
-
-    neighbors = contours.get_neighbors_matrix_gallito(
-        test_word, test_code, test_space_name, neighbors=test_neighbors
-    )
-    word = spaces.get_word_vector_gallito(test_word, test_code, test_space_name)
-    resultado = contours.neighbors_similarity(word, neighbors)
-
-    assert isinstance(resultado, dict)
-    assert isinstance(list(resultado.keys())[0], str)
-    assert isinstance(list(resultado.values())[0], np.float64)
-
-def test_get_superterm():
-    # Parámetros de prueba
-    resources = Path(__file__).resolve().parent.parent / "resources"
-    test_vocabulary_path = resources / "vocabulario_test_sp.txt"
-    test_code = os.getenv("GALLITO_API_KEY", "default_code")
-    test_space_name = "quantumlikespace_spanish"
-
-    # Ejecutamos la función
-    resultado = contours.get_superterm_gallito(str(test_vocabulary_path), test_code, test_space_name)
-
-    # Comprobamos los tests
-    assert len(resultado) == 2
-    assert isinstance(resultado, tuple)
-    assert isinstance(resultado[0], np.ndarray)
-    assert isinstance(resultado[1], np.ndarray)
-
-def test_deserved_neighbors():
-    resources = Path(__file__).resolve().parent.parent / "resources"
-    test_h_df_path = resources / "sp_vocab_semantic_diversity.csv"
-    test_superterm_cosines_path = resources / "superterm_cosines.csv"
-    test_word = "china"
-    test_code = os.getenv("GALLITO_API_KEY", "default_code")
-    test_space_name = "quantumlikespace_spanish"
-    test_neighbors = 100
-
-    test_h_df = pd.read_csv(test_h_df_path)
-    test_h_df = test_h_df.drop(test_h_df.columns[0], axis=1)
-    test_superterm_cosines = pd.read_csv(test_superterm_cosines_path)
-    test_superterm_cosines = test_superterm_cosines.drop(test_superterm_cosines.columns[0], axis=1)
-    test_superterm_cosines = np.array(test_superterm_cosines)
-
-    # Ejecutamos la función
-    neighbors = contours.get_neighbors_matrix_gallito(
-        test_word, test_code, test_space_name, neighbors=test_neighbors
-    )
-    word = spaces.get_word_vector_gallito(test_word, test_code, test_space_name)
-    word_cosines = contours.neighbors_similarity(word, neighbors)
-    word_cosines = np.array(list(word_cosines.values()))
-    resultado = contours.deserved_neighbors(
-        "chino", test_h_df, test_superterm_cosines, word_cosines
-    )
-
-    # Comprobamos los tests
-    assert resultado > 0
-    assert isinstance(resultado, int)
-
-def test_find_closest_neighbors_lsa():
-    # Parámetros de prueba
-    resources = Path(__file__).resolve().parent.parent / "resources"
-    test_word = "mundo"
-    test_vocabulary_path = resources / "vocabulario_test_sp.txt"
-    test_code = os.getenv("GALLITO_API_KEY", "default_code")
-    test_space_name = "quantumlikespace_spanish"
-    test_neighbors = 5
-
-    # Ejecutamos la función
-    test_corpus = spaces.get_lsa_corpus_gallito(str(test_vocabulary_path), test_code, test_space_name)
-    resultado = contours.find_closest_neighbors_lsa(test_word, test_corpus, n_neighbors=test_neighbors)
-
-    # Comprobamos los tests
-    assert isinstance(resultado, dict)
-    assert isinstance(list(resultado.keys())[0], str)
-    assert isinstance(list(resultado.values())[0], np.ndarray)
+import QLang.contours as contours
 
 
-def test_get_neighbors_matrix_bert():
-    result = contours.get_neighbors_matrix_bert("hello")
-    assert isinstance(result, dict)
-    assert isinstance(list(result.values())[0], np.ndarray)
+def test_cosine_similarity():
+    """Test basic cosine similarity calculation."""
+    v1 = np.array([1, 0, 0])
+    v2 = np.array([0, 1, 0])
+    v3 = np.array([1, 0, 0])
+    
+    # Test orthogonal vectors
+    assert abs(contours.cosine_similarity(v1, v2)) < 1e-10
+    
+    # Test identical vectors  
+    assert abs(contours.cosine_similarity(v1, v3) - 1.0) < 1e-10
 
 
-def test_get_neighbors_matrix_gpt2():
-    result = contours.get_neighbors_matrix_gpt2("hello")
-    assert isinstance(result, dict)
-    assert isinstance(list(result.values())[0], np.ndarray)
+def test_analyze_contextual_contour():
+    """Test contextual contour analysis."""
+    # Create mock data
+    mock_contour = {
+        'contextual_vectors': [
+            np.array([1, 0, 0]),
+            np.array([0, 1, 0]),
+            np.array([1, 1, 0]) / np.sqrt(2)
+        ],
+        'contexts': ['context1', 'context2', 'context3']
+    }
+    
+    result = contours.analyze_contextual_contour(mock_contour, 'test_word')
+    
+    assert 'similarity_matrix' in result
+    assert 'average_similarity' in result
+    assert 'std_similarity' in result
+    assert result['similarity_matrix'].shape == (3, 3)
 
 
-def test_get_neighbors_matrix_word2vec():
-    result = contours.get_neighbors_matrix_word2vec("hello")
-    assert isinstance(result, dict)
-    assert isinstance(list(result.values())[0], np.ndarray)
+@pytest.mark.slow
+def test_get_complete_contextual_contour_wikipedia():
+    """Test Wikipedia contextual contour extraction."""
+    # This is an integration test that requires internet
+    # We'll test with a simple word and minimal parameters
+    try:
+        result = contours.get_complete_contextual_contour_wikipedia(
+            'cat', 
+            max_contexts=2,
+            verbose=False
+        )
+        
+        # Check that we got some results (function returns dict with occurrence keys)
+        assert result is not None
+        assert isinstance(result, dict)
+        assert len(result) <= 2  # Should have at most 2 contexts
+        
+    except (ConnectionError, TimeoutError, ValueError) as e:
+        # If network/API fails, skip the test
+        pytest.skip(f"Wikipedia API test failed: {e}")
 
 
-def test_get_neighbors_matrix_glove():
-    result = contours.get_neighbors_matrix_glove("hello")
-    assert isinstance(result, dict)
-    assert isinstance(list(result.values())[0], np.ndarray)
-
-
-def test_get_neighbors_matrix_elmo():
-    result = contours.get_neighbors_matrix_elmo("hello")
-    assert isinstance(result, dict)
-    assert isinstance(list(result.values())[0], np.ndarray)
-
-
-def test_get_neighbors_matrix_distilbert():
-    result = contours.get_neighbors_matrix_distilbert("hello")
-    assert isinstance(result, dict)
-    assert isinstance(list(result.values())[0], np.ndarray)
-
-
-def test_get_contextual_contour_wikipedia():
-    result = contours.get_contextual_contour_wikipedia("hello")
-    assert isinstance(result, dict)
-    if result:
-        assert isinstance(list(result.values())[0], np.ndarray)
-
+def test_visualize_contextual_contour():
+    """Test visualization function."""
+    # Create mock analysis results
+    mock_results = {
+        'target_word': 'test_word',
+        'similarity_matrix': np.array([[1.0, 0.5], [0.5, 1.0]]),
+        'average_similarity': 0.75,
+        'std_similarity': 0.25,
+        'contexts': ['context1', 'context2']
+    }
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        save_path = os.path.join(tmpdir, 'test_plot.png')
+        
+        # Should not raise an exception
+        try:
+            contours.visualize_contextual_contour(mock_results, save_path=save_path)
+            # Check that file was created
+            assert os.path.exists(save_path)
+        except ImportError:
+            # Skip if matplotlib not available
+            pytest.skip("Matplotlib not available for visualization test")
