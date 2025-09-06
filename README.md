@@ -1,10 +1,10 @@
-# QSub Library
+# QLang Library
 
 ## Overview
 
-The **QSub** (Quantum Subspaces) Library is a Python package designed for creating and analyzing contextual semantic subspaces. It leverages advanced computational models and real-world data sources to explore how word meanings vary across different contexts. This library is particularly useful for researchers working in computational linguistics, semantic analysis, and natural language processing.
+The **QLang** (Quantum Language) Library is a Python package designed for creating and analyzing contextual semantic subspaces. It leverages advanced computational models and real-world data sources to explore how word meanings vary across different contexts. This library is particularly useful for researchers working in computational linguistics, semantic analysis, and natural language processing.
 
-QSub provides tools for extracting contextual instances of words from Wikipedia, analyzing semantic variations, and visualizing how meanings shift across different linguistic environments.
+QLang provides tools for extracting contextual instances of words from Wikipedia, analyzing semantic variations, and visualizing how meanings shift across different linguistic environments.
 
 ## Key Features
 
@@ -17,7 +17,7 @@ QSub provides tools for extracting contextual instances of words from Wikipedia,
 
 ## Installation
 
-To install QSub, run the following commands:
+To install QLang, run the following commands:
 
 ```bash
 git clone https://github.com/alejandrommingo/QSub.git
@@ -48,7 +48,7 @@ specific hidden layer (by index), ``"last"`` for the final layer (default) or
 
 ## Usage & Examples
 
-QSub provides three main demonstration notebooks showcasing different aspects of the library:
+QLang provides three main demonstration notebooks showcasing different aspects of the library:
 
 ### 1. [Contextual Contours](notebooks/Contextual_Contours.ipynb) 
 Complete pipeline demonstrating:
@@ -73,7 +73,7 @@ Original conceptual demonstration:
 ### Quick Start
 
 ```python
-from QSub import contours
+from QLang import contours
 
 # Extract contextual contour from Wikipedia
 target_word = "bank"
@@ -112,7 +112,7 @@ contours.visualize_contextual_contour(
 
 ## Applications
 
-QSub is designed for research in:
+QLang is designed for research in:
 - **Polysemy Detection**: Identify words with multiple meanings across contexts
 - **Semantic Drift Analysis**: Study how word meanings change over time or domains
 - **Contextual Semantics**: Understand how context influences word interpretation
@@ -121,7 +121,7 @@ QSub is designed for research in:
 
 ## Contributing
 
-We welcome contributions to the QSub Library! If you have suggestions for improvements or bug reports, please open an issue or submit a pull request.
+We welcome contributions to the QLang Library! If you have suggestions for improvements or bug reports, please open an issue or submit a pull request.
 
 ## License
 
@@ -131,4 +131,4 @@ This project is licensed under the [GNU General Public License](LICENSE).
 
 If you use this repository in your research, please cite it as follows:
 
-Martinez-Mingo, A. (2024). *QSub: Quantum Subspaces*. GitHub repository. Available at: https://github.com/alejandrommingo/QSub
+Martinez-Mingo, A. (2024). *QLang: Quantum Language Analysis*. GitHub repository. Available at: https://github.com/alejandrommingo/QSub
